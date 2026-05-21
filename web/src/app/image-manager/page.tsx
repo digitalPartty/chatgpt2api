@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { DateRangeFilter } from "@/components/date-range-filter";
 import { ImageLightbox } from "@/components/image-lightbox";
+import { normalizeImageUrl } from "@/components/image-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,7 +93,7 @@ function ImageManagerContent() {
 
   const lightboxImages = filteredItems.map((item) => ({
     id: item.name,
-    src: item.url,
+    src: normalizeImageUrl(item.url),
     sizeLabel: formatSize(item.size),
     dimensions: item.width && item.height ? `${item.width} x ${item.height}` : undefined,
   }));
@@ -387,12 +388,13 @@ function ImageManagerContent() {
                     }}
                   >
                     <img
-                      src={item.thumbnail_url || item.url}
+                      src={normalizeImageUrl(item.thumbnail_url || item.url)}
                       alt={item.name}
                       className="h-full w-full object-cover transition group-hover:scale-[1.02]"
                       onError={(event) => {
-                        if (event.currentTarget.src !== item.url) {
-                          event.currentTarget.src = item.url;
+                        const fallback = normalizeImageUrl(item.url);
+                        if (event.currentTarget.src !== fallback) {
+                          event.currentTarget.src = fallback;
                         }
                       }}
                     />
