@@ -541,7 +541,13 @@ class OpenAIBackendAPI:
             "height": item["height"],
             "size_bytes": item["file_size"],
         } for item in references]
-        parts.append(prompt)
+        if references:
+            image_labels = ", ".join(
+                f"image_{idx}.png = 图{idx}" for idx in range(1, len(references) + 1)
+            )
+            parts.append(f"[{image_labels}]\n{prompt}")
+        else:
+            parts.append(prompt)
         content = {"content_type": "multimodal_text", "parts": parts} if references else {"content_type": "text",
                                                                                           "parts": [prompt]}
         metadata = {

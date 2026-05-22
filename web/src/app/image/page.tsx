@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { History, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ImageComposer } from "@/app/image/components/image-composer";
+import { ImageComposer, type AtMentionImage } from "@/app/image/components/image-composer";
 import { ImageResults, type ImageLightboxItem } from "@/app/image/components/image-results";
 import { ImageSidebar } from "@/app/image/components/image-sidebar";
 import { ImageLightbox } from "@/components/image-lightbox";
@@ -370,6 +370,50 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
     () => conversations.find((item) => item.id === selectedConversationId) ?? null,
     [conversations, selectedConversationId],
   );
+  const availableAtMentionImages = useMemo<AtMentionImage[]>(() => {
+    const seen = new Set<string>();
+    const images: AtMentionImage[] = [];
+    // 当前已上传但未提交的参考图
+    for (const ref of referenceImages) {
+      const key = ref.dataUrl.slice(0, 128);
+      if (!seen.has(key)) {
+        seen.add(key);
+        images.push({ id: `current-${ref.name}`, name: ref.name, dataUrl: ref.dataUrl });
+      }
+    }
+    if (selectedConversation) {
+      for (const turn of selectedConversation.turns) {
+        // 历史轮次中用过的参考图
+        for (const ref of turn.referenceImages) {
+          const key = ref.dataUrl.slice(0, 128);
+          if (!seen.has(key)) {
+            seen.add(key);
+            images.push({ id: `${turn.id}-ref-${ref.name}`, name: ref.name, dataUrl: ref.dataUrl });
+          }
+        }
+        // 历史轮次中已生成的图片
+        for (const img of turn.images) {
+          if (img.status === "success") {
+            if (img.b64_json) {
+              const dataUrl = `data:image/png;base64,${img.b64_json}`;
+              const key = dataUrl.slice(0, 128);
+              if (!seen.has(key)) {
+                seen.add(key);
+                images.push({ id: img.id, name: `生成图-${img.id.slice(-6)}`, dataUrl });
+              }
+            } else if (img.url) {
+              const key = img.url;
+              if (!seen.has(key)) {
+                seen.add(key);
+                images.push({ id: img.id, name: `生成图-${img.id.slice(-6)}`, src: img.url });
+              }
+            }
+          }
+        }
+      }
+    }
+    return images;
+  }, [selectedConversation, referenceImages]);
   const activeTaskCount = useMemo(
     () =>
       conversations.reduce((sum, conversation) => {
@@ -739,6 +783,28 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
     });
     setReferenceImages((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   }, []);
+
+  const handleAtMentionSelect = useCallback(async (image: AtMentionImage) => {
+    if (image.dataUrl) {
+      // 已在参考图中则不重复添加，但不报错（prompt 里可以多次 @同一张）
+      if (referenceImages.some((ref) => ref.dataUrl === image.dataUrl)) return;
+      setReferenceImages((prev) => [...prev, { name: image.name, type: "image/png", dataUrl: image.dataUrl! }]);
+      setReferenceImageFiles((prev) => [...prev, dataUrlToFile(image.dataUrl!, image.name)]);
+    } else if (image.src) {
+      try {
+        const result = await buildReferenceImageFromStoredImage(
+          { id: image.id, status: "success", url: image.src },
+          `${image.name}.png`,
+        );
+        if (!result) return;
+        if (referenceImages.some((ref) => ref.dataUrl === result.referenceImage.dataUrl)) return;
+        setReferenceImages((prev) => [...prev, result.referenceImage]);
+        setReferenceImageFiles((prev) => [...prev, result.file]);
+      } catch {
+        toast.error("读取图片失败");
+      }
+    }
+  }, [referenceImages]);
 
   const handleContinueEdit = useCallback(
     async (conversationId: string, image: StoredImage | StoredReferenceImage) => {
@@ -1236,6 +1302,8 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
             onPickReferenceImage={() => fileInputRef.current?.click()}
             onReferenceImageChange={handleReferenceImageChange}
             onRemoveReferenceImage={handleRemoveReferenceImage}
+            availableImages={availableAtMentionImages}
+            onAtMentionSelect={handleAtMentionSelect}
           />
         </div>
       </section>

@@ -1,12 +1,19 @@
 "use client";
-import { ArrowUp, Check, ChevronDown, ImagePlus, LoaderCircle, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type RefObject } from "react";
+import { AtSign, ArrowUp, Check, ChevronDown, ImagePlus, LoaderCircle, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type RefObject } from "react";
 
 import { ImageLightbox } from "@/components/image-lightbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+export type AtMentionImage = {
+  id: string;
+  name: string;
+  dataUrl?: string;
+  src?: string;
+};
 
 type ImageComposerProps = {
   prompt: string;
@@ -15,6 +22,7 @@ type ImageComposerProps = {
   availableQuota: string;
   activeTaskCount: number;
   referenceImages: Array<{ name: string; dataUrl: string }>;
+  availableImages?: AtMentionImage[];
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onPromptChange: (value: string) => void;
@@ -24,6 +32,7 @@ type ImageComposerProps = {
   onPickReferenceImage: () => void;
   onReferenceImageChange: (files: File[]) => void | Promise<void>;
   onRemoveReferenceImage: (index: number) => void;
+  onAtMentionSelect?: (image: AtMentionImage) => void;
 };
 
 export function ImageComposer({
@@ -33,6 +42,7 @@ export function ImageComposer({
   availableQuota,
   activeTaskCount,
   referenceImages,
+  availableImages = [],
   textareaRef,
   fileInputRef,
   onPromptChange,
@@ -42,13 +52,18 @@ export function ImageComposer({
   onPickReferenceImage,
   onReferenceImageChange,
   onRemoveReferenceImage,
+  onAtMentionSelect,
 }: ImageComposerProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
   const [sizeMenuPos, setSizeMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [atMentionOpen, setAtMentionOpen] = useState(false);
+  const [atMentionStart, setAtMentionStart] = useState(-1);
+  const [atMentionQuery, setAtMentionQuery] = useState("");
   const sizeMenuRef = useRef<HTMLDivElement>(null);
   const sizeMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const atMentionRef = useRef<HTMLDivElement>(null);
   const lightboxImages = useMemo(
     () => referenceImages.map((image, index) => ({ id: `${image.name}-${index}`, src: image.dataUrl })),
     [referenceImages],
@@ -77,6 +92,80 @@ export function ImageComposer({
       window.removeEventListener("mousedown", handlePointerDown);
     };
   }, [isSizeMenuOpen]);
+
+  useEffect(() => {
+    if (!atMentionOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!atMentionRef.current?.contains(event.target as Node)) {
+        setAtMentionOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [atMentionOpen]);
+
+  const filteredAtImages = useMemo(() => {
+    if (!atMentionQuery) return availableImages;
+    const q = atMentionQuery.toLowerCase();
+    return availableImages.filter((img) => img.name.toLowerCase().includes(q));
+  }, [availableImages, atMentionQuery]);
+
+  const detectAtMention = useCallback(
+    (value: string, cursorPos: number) => {
+      const textBeforeCursor = value.slice(0, cursorPos);
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      if (lastAtIndex !== -1) {
+        const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+        if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+          setAtMentionOpen(true);
+          setAtMentionStart(lastAtIndex);
+          setAtMentionQuery(textAfterAt);
+          return;
+        }
+      }
+      setAtMentionOpen(false);
+    },
+    [],
+  );
+
+  const handleAtMentionSelect = useCallback(
+    (image: AtMentionImage) => {
+      // 把 @query 替换成 @图片名，保留在 prompt 里
+      const tag = `@${image.name}`;
+      const newPrompt =
+        prompt.slice(0, atMentionStart) +
+        tag +
+        prompt.slice(atMentionStart + 1 + atMentionQuery.length);
+      onPromptChange(newPrompt);
+      onAtMentionSelect?.(image);
+      setAtMentionOpen(false);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          const pos = atMentionStart + tag.length;
+          textarea.setSelectionRange(pos, pos);
+          textarea.focus();
+        }
+      });
+    },
+    [prompt, atMentionStart, atMentionQuery, onPromptChange, onAtMentionSelect, textareaRef],
+  );
+
+  const handleAtButtonClick = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? prompt.length;
+    const end = textarea.selectionEnd ?? prompt.length;
+    const newPrompt = prompt.slice(0, start) + "@" + prompt.slice(end);
+    onPromptChange(newPrompt);
+    setAtMentionStart(start);
+    setAtMentionQuery("");
+    setAtMentionOpen(true);
+    requestAnimationFrame(() => {
+      textarea.setSelectionRange(start + 1, start + 1);
+      textarea.focus();
+    });
+  }, [prompt, onPromptChange, textareaRef]);
 
   const handleTextareaPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const imageFiles = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
@@ -137,140 +226,191 @@ export function ImageComposer({
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#26272c] shadow-[0_14px_60px_-42px_rgba(0,0,0,0.6)] sm:rounded-[32px] sm:shadow-none">
-          <div
-            className="relative cursor-text"
-            onClick={() => {
-              textareaRef.current?.focus();
-            }}
-          >
-            <ImageLightbox
-              images={lightboxImages}
-              currentIndex={lightboxIndex}
-              open={lightboxOpen}
-              onOpenChange={setLightboxOpen}
-              onIndexChange={setLightboxIndex}
-            />
-            <Textarea
-              ref={textareaRef}
-              value={prompt}
-              onChange={(event) => onPromptChange(event.target.value)}
-              onPaste={handleTextareaPaste}
-              placeholder={
-                referenceImages.length > 0
-                  ? "描述你希望如何修改参考图"
-                  : "输入你想要生成的画面，也可直接粘贴图片"
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void onSubmit();
-                }
-              }}
-              className="min-h-[82px] resize-none rounded-[24px] border-0 bg-transparent px-4 pt-4 pb-2 text-[15px] leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 sm:min-h-[148px] sm:rounded-[32px] sm:px-6 sm:pt-6 sm:pb-20 sm:leading-7"
-            />
-
-            <div className="rounded-b-[24px] border-t border-white/[0.06] bg-[#26272c] px-3 pb-3 pt-2 sm:absolute sm:inset-x-0 sm:bottom-0 sm:rounded-b-none sm:border-t-0 sm:bg-gradient-to-t sm:from-[#26272c] sm:via-[#26272c]/95 sm:to-transparent sm:px-6 sm:pb-4 sm:pt-6" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-end justify-between gap-2 sm:gap-3">
-                <div className="hide-scrollbar flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:pb-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 shrink-0 rounded-full border-white/[0.1] bg-white/[0.06] px-3 text-xs font-medium text-white/70 shadow-none hover:bg-white/[0.1] hover:text-white sm:h-10 sm:px-4 sm:text-sm"
-                    onClick={onPickReferenceImage}
-                    aria-label={referenceImages.length > 0 ? "添加参考图" : "上传"}
-                  >
-                    <ImagePlus className="size-3.5 sm:size-4" />
-                    <span className="hidden sm:inline">{referenceImages.length > 0 ? "添加参考图" : "上传"}</span>
-                  </Button>
-                  <div className="shrink-0 rounded-full bg-white/[0.06] px-2 py-1 text-[10px] font-medium text-white/45 sm:px-3 sm:py-2 sm:text-xs">
-                    <span className="hidden sm:inline">剩余额度 </span>{availableQuota}
-                  </div>
-                  {activeTaskCount > 0 && (
-                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-medium text-amber-400 sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs">
-                      <LoaderCircle className="size-3 animate-spin" />
-                      {activeTaskCount}<span className="hidden sm:inline"> 个任务处理中</span>
-                    </div>
-                  )}
-                  <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-2 py-0.5 sm:h-auto sm:gap-2 sm:px-3 sm:py-1">
-                    <span className="hidden text-[11px] font-medium text-white/60 sm:inline sm:text-sm">张数</span>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="100"
-                      step="1"
-                      value={imageCount}
-                      onChange={(event) => onImageCountChange(event.target.value)}
-                      className="h-7 w-[40px] border-0 bg-transparent px-0 text-center text-xs font-medium text-white/80 shadow-none focus-visible:ring-0 sm:h-8 sm:w-[64px] sm:text-sm"
-                    />
-                  </div>
-                  <div
-                    className="relative flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-2 py-0.5 text-[11px] sm:h-auto sm:gap-2 sm:px-3 sm:py-1 sm:text-[13px]"
-                  >
-                    <span className="hidden font-medium text-white/60 sm:inline sm:text-sm">比例</span>
+        <div className="relative">
+          {atMentionOpen && (
+            <div
+              ref={atMentionRef}
+              className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#2e2f35] p-3 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.6)]"
+            >
+              <div className="mb-2 text-[11px] font-medium text-white/40">选择参考图</div>
+              {filteredAtImages.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {filteredAtImages.map((img) => (
                     <button
-                      ref={sizeMenuBtnRef}
+                      key={img.id}
                       type="button"
-                      className="flex h-7 w-[78px] items-center justify-between bg-transparent text-left text-xs font-bold text-white/80 min-[390px]:w-[96px] sm:h-8 sm:w-[132px]"
-                      onClick={() => {
-                        if (!isSizeMenuOpen && sizeMenuBtnRef.current) {
-                          const rect = sizeMenuBtnRef.current.getBoundingClientRect();
-                          const menuWidth = Math.min(186, window.innerWidth - 32);
-                          setSizeMenuPos({ top: rect.top - 8, left: Math.max(16, Math.min(rect.left, window.innerWidth - menuWidth - 16)) });
-                        }
-                        setIsSizeMenuOpen((open) => !open);
-                      }}
+                      onClick={() => handleAtMentionSelect(img)}
+                      className="flex shrink-0 flex-col items-center gap-1 rounded-xl p-1 transition hover:bg-white/[0.06]"
                     >
-                      <span className="truncate">{imageSizeLabel}</span>
-                      <ChevronDown className={cn("size-4 shrink-0 opacity-60 transition", isSizeMenuOpen && "rotate-180")} />
+                      <div className="size-14 overflow-hidden rounded-xl border border-white/[0.1] bg-white/[0.05]">
+                        <img src={img.dataUrl ?? img.src ?? ""} alt={img.name} className="h-full w-full object-cover" />
+                      </div>
+                      <span className="w-14 truncate text-center text-[10px] text-white/50">{img.name}</span>
                     </button>
-                    {isSizeMenuOpen ? (
-                      <div
-                        ref={sizeMenuRef}
-                        className="fixed z-[80] max-h-[45dvh] overflow-y-auto rounded-3xl border border-white/[0.08] bg-[#2e2f35] p-2 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.6)]"
-                        style={{
-                          top: sizeMenuPos.top,
-                          left: sizeMenuPos.left,
-                          transform: "translateY(-100%)",
-                          width: "min(186px, calc(100vw - 2rem))",
+                  ))}
+                </div>
+              ) : (
+                <div className="py-2 text-center text-xs text-white/30">暂无上传图片</div>
+              )}
+            </div>
+          )}
+
+          <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#26272c] shadow-[0_14px_60px_-42px_rgba(0,0,0,0.6)] sm:rounded-[32px] sm:shadow-none">
+            <div
+              className="relative cursor-text"
+              onClick={() => {
+                textareaRef.current?.focus();
+              }}
+            >
+              <ImageLightbox
+                images={lightboxImages}
+                currentIndex={lightboxIndex}
+                open={lightboxOpen}
+                onOpenChange={setLightboxOpen}
+                onIndexChange={setLightboxIndex}
+              />
+              <Textarea
+                ref={textareaRef}
+                value={prompt}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  detectAtMention(value, event.target.selectionStart ?? value.length);
+                  onPromptChange(value);
+                }}
+                onPaste={handleTextareaPaste}
+                placeholder={
+                  referenceImages.length > 0
+                    ? "描述你希望如何修改参考图"
+                    : "输入你想要生成的画面，也可直接粘贴图片"
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Escape" && atMentionOpen) {
+                    event.preventDefault();
+                    setAtMentionOpen(false);
+                    return;
+                  }
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void onSubmit();
+                  }
+                }}
+                className="min-h-[82px] resize-none rounded-[24px] border-0 bg-transparent px-4 pt-4 pb-2 text-[15px] leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 sm:min-h-[148px] sm:rounded-[32px] sm:px-6 sm:pt-6 sm:pb-20 sm:leading-7"
+              />
+
+              <div className="rounded-b-[24px] border-t border-white/[0.06] bg-[#26272c] px-3 pb-3 pt-2 sm:absolute sm:inset-x-0 sm:bottom-0 sm:rounded-b-none sm:border-t-0 sm:bg-gradient-to-t sm:from-[#26272c] sm:via-[#26272c]/95 sm:to-transparent sm:px-6 sm:pb-4 sm:pt-6" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-end justify-between gap-2 sm:gap-3">
+                  <div className="hide-scrollbar flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:gap-3 sm:overflow-visible sm:pb-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 shrink-0 rounded-full border-white/[0.1] bg-white/[0.06] px-3 text-xs font-medium text-white/70 shadow-none hover:bg-white/[0.1] hover:text-white sm:h-10 sm:px-4 sm:text-sm"
+                      onClick={onPickReferenceImage}
+                      aria-label={referenceImages.length > 0 ? "添加参考图" : "上传"}
+                    >
+                      <ImagePlus className="size-3.5 sm:size-4" />
+                      <span className="hidden sm:inline">{referenceImages.length > 0 ? "添加参考图" : "上传"}</span>
+                    </Button>
+                    {availableImages.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 shrink-0 rounded-full border-white/[0.1] bg-white/[0.06] px-3 text-xs font-medium text-white/70 shadow-none hover:bg-white/[0.1] hover:text-white sm:h-10 sm:px-4 sm:text-sm"
+                        onClick={handleAtButtonClick}
+                        aria-label="引用上传图片"
+                      >
+                        <AtSign className="size-3.5 sm:size-4" />
+                        <span className="hidden sm:inline">引用图片</span>
+                      </Button>
+                    )}
+                    <div className="shrink-0 rounded-full bg-white/[0.06] px-2 py-1 text-[10px] font-medium text-white/45 sm:px-3 sm:py-2 sm:text-xs">
+                      <span className="hidden sm:inline">剩余额度 </span>{availableQuota}
+                    </div>
+                    {activeTaskCount > 0 && (
+                      <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-medium text-amber-400 sm:gap-1.5 sm:px-3 sm:py-2 sm:text-xs">
+                        <LoaderCircle className="size-3 animate-spin" />
+                        {activeTaskCount}<span className="hidden sm:inline"> 个任务处理中</span>
+                      </div>
+                    )}
+                    <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-2 py-0.5 sm:h-auto sm:gap-2 sm:px-3 sm:py-1">
+                      <span className="hidden text-[11px] font-medium text-white/60 sm:inline sm:text-sm">张数</span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="100"
+                        step="1"
+                        value={imageCount}
+                        onChange={(event) => onImageCountChange(event.target.value)}
+                        className="h-7 w-[40px] border-0 bg-transparent px-0 text-center text-xs font-medium text-white/80 shadow-none focus-visible:ring-0 sm:h-8 sm:w-[64px] sm:text-sm"
+                      />
+                    </div>
+                    <div
+                      className="relative flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-2 py-0.5 text-[11px] sm:h-auto sm:gap-2 sm:px-3 sm:py-1 sm:text-[13px]"
+                    >
+                      <span className="hidden font-medium text-white/60 sm:inline sm:text-sm">比例</span>
+                      <button
+                        ref={sizeMenuBtnRef}
+                        type="button"
+                        className="flex h-7 w-[78px] items-center justify-between bg-transparent text-left text-xs font-bold text-white/80 min-[390px]:w-[96px] sm:h-8 sm:w-[132px]"
+                        onClick={() => {
+                          if (!isSizeMenuOpen && sizeMenuBtnRef.current) {
+                            const rect = sizeMenuBtnRef.current.getBoundingClientRect();
+                            const menuWidth = Math.min(186, window.innerWidth - 32);
+                            setSizeMenuPos({ top: rect.top - 8, left: Math.max(16, Math.min(rect.left, window.innerWidth - menuWidth - 16)) });
+                          }
+                          setIsSizeMenuOpen((open) => !open);
                         }}
                       >
-                        {imageSizeOptions.map((option) => {
-                          const active = option.value === imageSize;
-                          return (
-                            <button
-                              key={option.label}
-                              type="button"
-                              className={cn(
-                                "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm text-white/65 transition hover:bg-white/[0.08] hover:text-white",
-                                active && "bg-white/[0.1] font-medium text-white",
-                              )}
-                              onClick={() => {
-                                onImageSizeChange(option.value);
-                                setIsSizeMenuOpen(false);
-                              }}
-                            >
-                              <span>{option.label}</span>
-                              {active ? <Check className="size-4" /> : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                        <span className="truncate">{imageSizeLabel}</span>
+                        <ChevronDown className={cn("size-4 shrink-0 opacity-60 transition", isSizeMenuOpen && "rotate-180")} />
+                      </button>
+                      {isSizeMenuOpen ? (
+                        <div
+                          ref={sizeMenuRef}
+                          className="fixed z-[80] max-h-[45dvh] overflow-y-auto rounded-3xl border border-white/[0.08] bg-[#2e2f35] p-2 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.6)]"
+                          style={{
+                            top: sizeMenuPos.top,
+                            left: sizeMenuPos.left,
+                            transform: "translateY(-100%)",
+                            width: "min(186px, calc(100vw - 2rem))",
+                          }}
+                        >
+                          {imageSizeOptions.map((option) => {
+                            const active = option.value === imageSize;
+                            return (
+                              <button
+                                key={option.label}
+                                type="button"
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm text-white/65 transition hover:bg-white/[0.08] hover:text-white",
+                                  active && "bg-white/[0.1] font-medium text-white",
+                                )}
+                                onClick={() => {
+                                  onImageSizeChange(option.value);
+                                  setIsSizeMenuOpen(false);
+                                }}
+                              >
+                                <span>{option.label}</span>
+                                {active ? <Check className="size-4" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => void onSubmit()}
+                    disabled={!prompt.trim()}
+                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-stone-950 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40 sm:size-11"
+                    aria-label={referenceImages.length > 0 ? "编辑图片" : "生成图片"}
+                  >
+                    <ArrowUp className="size-3.5 sm:size-4" />
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => void onSubmit()}
-                  disabled={!prompt.trim()}
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-stone-950 transition hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40 sm:size-11"
-                  aria-label={referenceImages.length > 0 ? "编辑图片" : "生成图片"}
-                >
-                  <ArrowUp className="size-3.5 sm:size-4" />
-                </button>
               </div>
             </div>
           </div>
