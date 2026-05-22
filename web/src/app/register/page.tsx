@@ -48,7 +48,7 @@ function RegisterPageContent() {
       <RegisterDataController />
       <section className="mb-2 flex flex-col gap-1 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
-          <div className="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Register</div>
+          <div className="text-xs font-semibold tracking-[0.18em] text-white/35 uppercase">Register</div>
           <h1 className="text-2xl font-semibold tracking-tight">ChatGPT注册机</h1>
         </div>
       </section>
@@ -65,7 +65,7 @@ export default function RegisterPage() {
   if (isCheckingAuth || !session || session.role !== "admin") {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <LoaderCircle className="size-5 animate-spin text-stone-400" />
+        <LoaderCircle className="size-5 animate-spin text-white/35" />
       </div>
     );
   }

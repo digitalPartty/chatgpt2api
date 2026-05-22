@@ -85,7 +85,7 @@ export function ImageResults({
       <div className="flex h-full min-h-[260px] items-center justify-center text-center sm:min-h-[420px]">
         <div className="w-full max-w-4xl">
           <h1
-            className="text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl md:text-5xl"
+            className="text-2xl font-semibold tracking-tight text-white/80 sm:text-3xl md:text-5xl"
             style={{
               fontFamily: '"Palatino Linotype","Book Antiqua","URW Palladio L","Times New Roman",serif',
             }}
@@ -93,7 +93,7 @@ export function ImageResults({
             Turn ideas into images
           </h1>
           <p
-            className="mx-auto mt-3 max-w-[280px] text-sm italic tracking-[0.01em] text-stone-500 sm:mt-4 sm:max-w-none sm:text-[15px]"
+            className="mx-auto mt-3 max-w-[280px] text-sm italic tracking-[0.01em] text-white/30 sm:mt-4 sm:max-w-none sm:text-[15px]"
             style={{
               fontFamily: '"Palatino Linotype","Book Antiqua","URW Palladio L","Times New Roman",serif',
             }}
@@ -130,8 +130,8 @@ export function ImageResults({
           <div key={turn.id} className="flex flex-col gap-3 sm:gap-4">
             {!turn.promptDeleted ? (
               <div className="flex justify-end">
-                <div className="max-w-[90%] px-1 py-1 text-[14px] leading-6 text-stone-900 sm:max-w-[82%] sm:text-[15px] sm:leading-7">
-                  <div className="mb-1.5 flex flex-wrap justify-end gap-2 text-[11px] text-stone-400 sm:mb-2">
+                <div className="max-w-[90%] px-1 py-1 text-[14px] leading-6 text-white/75 sm:max-w-[82%] sm:text-[15px] sm:leading-7">
+                  <div className="mb-1.5 flex flex-wrap justify-end gap-2 text-[11px] text-white/25 sm:mb-2">
                     <span>第 {turnIndex + 1} 轮</span>
                     <span>
                       {turn.mode === "edit" ? "编辑图" : "文生图"}
@@ -144,14 +144,14 @@ export function ImageResults({
                     <button
                       type="button"
                       onClick={() => void onReuseTurnConfig(selectedConversation.id, turn.id)}
-                      className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-stone-200 hover:text-stone-900"
+                      className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-white/50 transition hover:bg-white/[0.1] hover:text-white/80"
                     >
                       复用配置
                     </button>
                     <button
                       type="button"
                       onClick={() => onDeletePrompt(selectedConversation.id, turn.id)}
-                      className="inline-flex size-6 items-center justify-center rounded-full text-stone-300 transition hover:bg-rose-50 hover:text-rose-500"
+                      className="inline-flex size-6 items-center justify-center rounded-full text-white/20 transition hover:bg-rose-500/15 hover:text-rose-400"
                       aria-label="删除提示词记录"
                     >
                       <Trash2 className="size-3" />
@@ -166,14 +166,14 @@ export function ImageResults({
                 <div className="w-full p-1">
                   {turn.referenceImages.length > 0 ? (
                     <div className="mb-4 flex flex-col items-end">
-                      <div className="mb-3 text-xs font-medium text-stone-500">本轮参考图</div>
+                      <div className="mb-3 text-xs font-medium text-white/35">本轮参考图</div>
                       <div className="flex flex-wrap justify-end gap-3">
                         {turn.referenceImages.map((image, index) => (
                           <div key={`${turn.id}-${image.name}-${index}`} className="flex flex-col items-end gap-2">
                             <button
                               type="button"
                               onClick={() => onOpenLightbox(referenceLightboxImages, index)}
-                              className="group relative h-24 w-24 overflow-hidden border border-stone-200/80 bg-stone-100/60 text-left transition hover:border-stone-300"
+                              className="group relative h-24 w-24 overflow-hidden border border-white/[0.1] bg-white/[0.05] text-left transition hover:border-white/20"
                               aria-label={`预览参考图 ${image.name || index + 1}`}
                             >
                               <img
@@ -185,7 +185,7 @@ export function ImageResults({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="rounded-full border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                              className="rounded-full border-white/[0.1] bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white"
                               onClick={() => onContinueEdit(selectedConversation.id, image)}
                             >
                               <Sparkles className="size-4" />
@@ -197,11 +197,11 @@ export function ImageResults({
                     </div>
                   ) : null}
 
-                  <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500 sm:mb-4 sm:gap-2 sm:text-xs">
-                    <span className="rounded-full bg-stone-100 px-3 py-1">{turn.count} 张</span>
-                    <span className="rounded-full bg-stone-100 px-3 py-1">{getTurnStatusLabel(turn.status)}</span>
+                  <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] text-white/50 sm:mb-4 sm:gap-2 sm:text-xs">
+                    <span className="rounded-full bg-white/[0.06] px-3 py-1">{turn.count} 张</span>
+                    <span className="rounded-full bg-white/[0.06] px-3 py-1">{getTurnStatusLabel(turn.status)}</span>
                     {turn.status === "queued" ? (
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">等待当前对话中的前序任务完成</span>
+                      <span className="rounded-full bg-amber-500/15 px-3 py-1 text-amber-400">等待当前对话中的前序任务完成</span>
                     ) : null}
                   </div>
 
@@ -238,15 +238,15 @@ export function ImageResults({
                               />
                             </button>
                             <div className="flex flex-col gap-1 px-0.5 py-1 text-[10px] sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3 sm:py-3 sm:text-xs">
-                              <div className="min-w-0 text-stone-500">
+                              <div className="min-w-0 text-white/35">
                                 <span>结果 {index + 1}</span>
-                                {imageMeta ? <span className="block text-stone-400 sm:ml-2 sm:inline">{imageMeta}</span> : null}
+                                {imageMeta ? <span className="block text-white/25 sm:ml-2 sm:inline">{imageMeta}</span> : null}
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 w-7 rounded-full border-stone-200 bg-white px-0 text-[10px] text-stone-700 hover:bg-stone-50 sm:h-8 sm:w-fit sm:px-3 sm:text-xs"
+                                  className="h-7 w-7 rounded-full border-white/[0.1] bg-white/[0.06] px-0 text-[10px] text-white/60 hover:bg-white/[0.1] hover:text-white sm:h-8 sm:w-fit sm:px-3 sm:text-xs"
                                   onClick={() => onContinueEdit(selectedConversation.id, image)}
                                   aria-label="加入编辑"
                                 >
@@ -256,7 +256,7 @@ export function ImageResults({
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 w-7 rounded-full border-stone-200 bg-white px-0 text-[10px] text-stone-700 hover:bg-stone-50 sm:h-8 sm:w-fit sm:px-3 sm:text-xs"
+                                  className="h-7 w-7 rounded-full border-white/[0.1] bg-white/[0.06] px-0 text-[10px] text-white/60 hover:bg-white/[0.1] hover:text-white sm:h-8 sm:w-fit sm:px-3 sm:text-xs"
                                   onClick={() => void downloadStoredImage(image, index)}
                                   aria-label="下载"
                                 >
@@ -274,7 +274,7 @@ export function ImageResults({
                           <div
                             key={image.id}
                             className={cn(
-                              "break-inside-avoid overflow-hidden rounded-xl border border-rose-200 bg-rose-50 sm:rounded-none",
+                              "break-inside-avoid overflow-hidden rounded-xl border border-rose-500/20 bg-rose-500/10 sm:rounded-none",
                               "aspect-square",
                               turn.size === "1:1" && "sm:aspect-square",
                               turn.size === "16:9" && "sm:aspect-video",
@@ -284,12 +284,12 @@ export function ImageResults({
                               !["1:1", "16:9", "9:16", "4:3", "3:4"].includes(turn.size) && "sm:aspect-square",
                             )}
                           >
-                            <div className="flex h-full min-h-16 flex-col items-center justify-center gap-1.5 px-2 py-2 text-center text-[11px] leading-4 text-rose-600 sm:gap-3 sm:px-6 sm:py-8 sm:text-sm sm:leading-6">
+                            <div className="flex h-full min-h-16 flex-col items-center justify-center gap-1.5 px-2 py-2 text-center text-[11px] leading-4 text-rose-400 sm:gap-3 sm:px-6 sm:py-8 sm:text-sm sm:leading-6">
                               <span className="line-clamp-2 sm:line-clamp-none">{image.error || "生成失败"}</span>
                               <button
                                 type="button"
                                 onClick={() => void onRetryImage(selectedConversation.id, turn.id, image.id)}
-                                className="rounded-full bg-white px-2 py-1 text-[10px] font-medium text-rose-600 shadow-sm transition hover:bg-rose-100 sm:px-3 sm:text-xs"
+                                className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-medium text-rose-400 shadow-sm transition hover:bg-rose-500/20 sm:px-3 sm:text-xs"
                               >
                                 重新生成这一张
                               </button>
@@ -302,7 +302,7 @@ export function ImageResults({
                         <div
                           key={image.id}
                           className={cn(
-                            "break-inside-avoid overflow-hidden rounded-xl border border-stone-200/80 bg-stone-100/80 sm:rounded-none",
+                            "break-inside-avoid overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.04] sm:rounded-none",
                             turn.size === "1:1" && "aspect-square",
                             turn.size === "16:9" && "aspect-video",
                             turn.size === "9:16" && "aspect-[9/16]",
@@ -311,8 +311,8 @@ export function ImageResults({
                             !["1:1", "16:9", "9:16", "4:3", "3:4"].includes(turn.size) && "aspect-square",
                           )}
                         >
-                          <div className="flex h-full flex-col items-center justify-center gap-1.5 px-2 py-3 text-center text-stone-500 sm:gap-3 sm:px-6 sm:py-8">
-                            <div className="rounded-full bg-white p-2 shadow-sm sm:p-3">
+                          <div className="flex h-full flex-col items-center justify-center gap-1.5 px-2 py-3 text-center text-white/35 sm:gap-3 sm:px-6 sm:py-8">
+                            <div className="rounded-full bg-white/[0.08] p-2 sm:p-3">
                               {turn.status === "queued" ? (
                                 <Clock3 className="size-4 sm:size-5" />
                               ) : (
@@ -327,7 +327,7 @@ export function ImageResults({
                   </div>
 
                   {turn.status === "error" && turn.error ? (
-                    <div className="mt-4 border-l-2 border-amber-300 bg-amber-50/70 px-4 py-3 text-sm leading-6 text-amber-700">
+                    <div className="mt-4 border-l-2 border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-400">
                       {turn.error}
                     </div>
                   ) : null}
@@ -336,7 +336,7 @@ export function ImageResults({
                     <button
                       type="button"
                       onClick={() => void onRegenerateTurn(selectedConversation.id, turn.id)}
-                      className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-500 transition hover:bg-stone-200 hover:text-stone-900"
+                      className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 font-medium text-white/45 transition hover:bg-white/[0.1] hover:text-white/80"
                     >
                       <RotateCcw className="size-3" />
                       全部重新生成
@@ -344,7 +344,7 @@ export function ImageResults({
                     <button
                       type="button"
                       onClick={() => onDeleteResults(selectedConversation.id, turn.id)}
-                      className="inline-flex size-6 items-center justify-center rounded-full text-stone-300 transition hover:bg-rose-50 hover:text-rose-500"
+                      className="inline-flex size-6 items-center justify-center rounded-full text-white/20 transition hover:bg-rose-500/15 hover:text-rose-400"
                       aria-label="删除生成结果"
                     >
                       <Trash2 className="size-3" />

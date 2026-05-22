@@ -21,12 +21,12 @@ const LONG_PRESS_MS = 800;
 
 function storageBadge(item: ManagedImage) {
   if (item.local && item.webdav) {
-    return { label: "双端", className: "border-sky-200 bg-sky-50 text-sky-700" };
+    return { label: "双端", className: "border-sky-500/30 bg-sky-500/15 text-sky-400" };
   }
   if (item.webdav || item.storage === "webdav") {
-    return { label: "WebDAV", className: "border-violet-200 bg-violet-50 text-violet-700" };
+    return { label: "WebDAV", className: "border-violet-500/30 bg-violet-500/15 text-violet-400" };
   }
-  return { label: "本机", className: "border-stone-200 bg-stone-50 text-stone-600" };
+  return { label: "本机", className: "border-white/[0.1] bg-white/[0.06] text-white/50" };
 }
 
 function formatSize(size: number) {
@@ -270,19 +270,19 @@ function ImageManagerContent() {
     <section className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <div className="text-xs font-semibold tracking-[0.18em] text-stone-500 uppercase">Images</div>
+          <div className="text-xs font-semibold tracking-[0.18em] text-white/35 uppercase">Images</div>
           <h1 className="text-2xl font-semibold tracking-tight">图片管理</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <DateRangeFilter startDate={startDate} endDate={endDate} onChange={(start, end) => { setStartDate(start); setEndDate(end); }} />
-          <Button variant="outline" onClick={clearFilters} className="h-10 rounded-xl border-stone-200 bg-white px-4 text-stone-700">
+          <Button variant="outline" onClick={clearFilters} className="h-10 rounded-xl border-white/[0.1] bg-white/[0.06] px-4 text-white/60 hover:bg-white/[0.1] hover:text-white">
             清除筛选条件
           </Button>
-          <Button onClick={() => void loadImages()} disabled={isLoading} className="h-10 rounded-xl bg-stone-950 px-4 text-white hover:bg-stone-800">
+          <Button onClick={() => void loadImages()} disabled={isLoading} className="h-10 rounded-xl bg-white px-4 text-stone-950 hover:bg-white/90">
             {isLoading ? <LoaderCircle className="size-4 animate-spin" /> : <Search className="size-4" />}
             查询
           </Button>
-          <Button variant="outline" onClick={() => setDeleteMode("filtered")} disabled={isDeleting || items.length === 0 || (!startDate && !endDate)} className="h-10 rounded-xl border-rose-200 bg-white px-4 text-rose-600 hover:bg-rose-50">
+          <Button variant="outline" onClick={() => setDeleteMode("filtered")} disabled={isDeleting || items.length === 0 || (!startDate && !endDate)} className="h-10 rounded-xl border-rose-500/30 bg-rose-500/10 px-4 text-rose-400 hover:bg-rose-500/20">
             <Trash2 className="size-4" />
             删除匹配日期
           </Button>
@@ -291,7 +291,7 @@ function ImageManagerContent() {
 
       {allTags.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-stone-500">
+          <span className="text-xs font-medium text-white/40">
             <Tag className="mr-1 inline size-3.5" />
             标签筛选：
           </span>
@@ -337,13 +337,13 @@ function ImageManagerContent() {
         </div>
       ) : null}
 
-      <Card className="rounded-2xl border-white/80 bg-white/90 shadow-sm">
+      <Card className="rounded-2xl shadow-sm">
         <CardContent className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-stone-600">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-white/50">
               <ImageIcon className="size-4" />
               共 {filteredItems.length} 张
-              {selectedTags.length > 0 ? <span className="text-stone-400">（筛选自 {items.length} 张）</span> : null}
+              {selectedTags.length > 0 ? <span className="text-white/30">（筛选自 {items.length} 张）</span> : null}
               <label className="flex items-center gap-2">
                 <Checkbox checked={currentPageSelected} onCheckedChange={(checked) => togglePaths(currentRows.map(imageKey), Boolean(checked))} />
                 本页全选
@@ -355,18 +355,18 @@ function ImageManagerContent() {
               {selectedPaths.length > 0 ? <span>已选 {selectedPaths.length} 张</span> : null}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" className="h-8 rounded-lg px-3 text-stone-500" onClick={() => void loadImages()} disabled={isLoading}>
+              <Button variant="ghost" className="h-8 rounded-lg px-3 text-white/50 hover:bg-white/[0.06] hover:text-white/80" onClick={() => void loadImages()} disabled={isLoading}>
                 <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
                 刷新
               </Button>
-              <button type="button" className="text-sm text-stone-500 hover:text-stone-900 disabled:text-stone-300" onClick={() => setSelectedPaths([])} disabled={selectedPaths.length === 0 || isDeleting}>
+              <button type="button" className="text-sm text-white/40 hover:text-white/80 disabled:text-white/20" onClick={() => setSelectedPaths([])} disabled={selectedPaths.length === 0 || isDeleting}>
                 取消选择
               </button>
-              <Button variant="outline" className="h-8 rounded-lg border-stone-200 bg-white px-3 text-stone-600 hover:bg-stone-50" onClick={() => void handleBatchDownload()} disabled={selectedPaths.length === 0 || isDownloading || isDeleting}>
+              <Button variant="outline" className="h-8 rounded-lg border-white/[0.1] bg-white/[0.06] px-3 text-white/55 hover:bg-white/[0.1] hover:text-white" onClick={() => void handleBatchDownload()} disabled={selectedPaths.length === 0 || isDownloading || isDeleting}>
                 {isDownloading ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
                 下载所选
               </Button>
-              <Button variant="outline" className="h-8 rounded-lg border-rose-200 bg-white px-3 text-rose-600 hover:bg-rose-50" onClick={() => setDeleteMode("selected")} disabled={selectedPaths.length === 0 || isDeleting}>
+              <Button variant="outline" className="h-8 rounded-lg border-rose-500/30 bg-rose-500/10 px-3 text-rose-400 hover:bg-rose-500/20" onClick={() => setDeleteMode("selected")} disabled={selectedPaths.length === 0 || isDeleting}>
                 <Trash2 className="size-4" />
                 删除所选
               </Button>
@@ -377,11 +377,11 @@ function ImageManagerContent() {
               const imageIndex = filteredItems.findIndex((row) => row.url === item.url);
               const storage = storageBadge(item);
               return (
-              <div key={item.rel} className="group border-r border-b border-stone-100 p-4 transition hover:bg-stone-50">
+              <div key={item.rel} className="group border-r border-b border-white/[0.06] p-4 transition hover:bg-white/[0.03]">
                 <div className="relative">
                   <button
                     type="button"
-                    className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg bg-stone-100 text-left"
+                    className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg bg-white/[0.06] text-left"
                     onClick={() => {
                       setLightboxIndex(imageIndex);
                       setLightboxOpen(true);
@@ -417,9 +417,9 @@ function ImageManagerContent() {
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
-                <div className="mt-3 space-y-2 text-xs text-stone-500">
+                <div className="mt-3 space-y-2 text-xs text-white/45">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 font-medium text-stone-700">
+                    <div className="flex items-center gap-1 font-medium text-white/65">
                       <CalendarDays className="size-3.5" />
                       {item.created_at}
                     </div>
@@ -427,7 +427,7 @@ function ImageManagerContent() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                        className="size-8 rounded-lg text-white/35 hover:bg-white/[0.08] hover:text-white/70"
                         onClick={() => void handleSingleDownload(item)}
                         title="下载图片"
                       >
@@ -436,7 +436,7 @@ function ImageManagerContent() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                        className="size-8 rounded-lg text-white/35 hover:bg-white/[0.08] hover:text-white/70"
                         onClick={() => {
                           void navigator.clipboard.writeText(item.url);
                           toast.success("图片地址已复制");
@@ -462,7 +462,7 @@ function ImageManagerContent() {
                         {tag}
                         <button
                           type="button"
-                          className="inline-flex size-3.5 items-center justify-center rounded-full hover:bg-stone-300"
+                          className="inline-flex size-3.5 items-center justify-center rounded-full hover:bg-white/[0.15]"
                           onClick={() => handleRemoveTag(item, tag)}
                         >
                           <X className="size-2.5" />
@@ -473,7 +473,7 @@ function ImageManagerContent() {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-stone-300 text-stone-400 hover:border-stone-500 hover:text-stone-600"
+                          className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-white/[0.2] text-white/35 hover:border-white/40 hover:text-white/60"
                           title="添加标签"
                         >
                           <Plus className="size-3" />
@@ -481,7 +481,7 @@ function ImageManagerContent() {
                       </PopoverTrigger>
                       <PopoverContent align="start" className="w-56 p-2">
                         <div className="space-y-2">
-                          <div className="text-xs font-medium text-stone-500">添加标签</div>
+                      <div className="text-xs font-medium text-white/40">添加标签</div>
                           <div className="flex gap-1">
                             <Input
                               value={tagInput}
@@ -505,7 +505,7 @@ function ImageManagerContent() {
                             </Button>
                           </div>
                           {allTags.filter((t) => !(item.tags ?? []).includes(t)).length > 0 ? (
-                            <div className="flex flex-wrap gap-1 border-t border-stone-100 pt-2">
+                            <div className="flex flex-wrap gap-1 border-t border-white/[0.06] pt-2">
                               {allTags.filter((t) => !(item.tags ?? []).includes(t)).map((tag) => (
                                 <button
                                   key={tag}
@@ -515,7 +515,7 @@ function ImageManagerContent() {
                                     setTagEditTarget(null);
                                   }}
                                 >
-                                  <Badge variant="outline" className="cursor-pointer rounded-md text-[10px] hover:bg-stone-100">
+                                  <Badge variant="outline" className="cursor-pointer rounded-md text-[10px] hover:bg-white/[0.08]">
                                     {tag}
                                   </Badge>
                                 </button>
@@ -530,16 +530,16 @@ function ImageManagerContent() {
               </div>
             )})}
           </div>
-          <div className="flex items-center justify-end gap-2 border-t border-stone-100 px-4 py-3 text-sm text-stone-500">
+          <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-4 py-3 text-sm text-white/40">
             <span>第 {safePage} / {pageCount} 页，共 {filteredItems.length} 张</span>
-            <Button variant="outline" size="icon" className="size-9 rounded-lg border-stone-200 bg-white" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+            <Button variant="outline" size="icon" className="size-9 rounded-lg border-white/[0.1] bg-white/[0.06]" disabled={safePage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
               <ChevronLeft className="size-4" />
             </Button>
-            <Button variant="outline" size="icon" className="size-9 rounded-lg border-stone-200 bg-white" disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>
+            <Button variant="outline" size="icon" className="size-9 rounded-lg border-white/[0.1] bg-white/[0.06]" disabled={safePage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>
               <ChevronRight className="size-4" />
             </Button>
           </div>
-          {!isLoading && filteredItems.length === 0 ? <div className="px-6 py-14 text-center text-sm text-stone-500">没有找到图片</div> : null}
+          {!isLoading && filteredItems.length === 0 ? <div className="px-6 py-14 text-center text-sm text-white/35">没有找到图片</div> : null}
         </CardContent>
       </Card>
 
@@ -548,26 +548,26 @@ function ImageManagerContent() {
           <DialogHeader>
             <DialogTitle className="pr-8">确认删除</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-white/55">
             确定要删除这张图片吗？此操作不可恢复。
           </p>
           {deleteTarget ? (
-            <div className="flex items-center gap-3 overflow-hidden rounded-xl border border-stone-200 bg-stone-50 p-3">
+            <div className="flex items-center gap-3 overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.04] p-3">
               <img
                 src={deleteTarget.thumbnail_url || deleteTarget.url}
                 alt=""
                 className="size-16 shrink-0 rounded-lg object-cover"
                 onError={(e) => { if (e.currentTarget.src !== deleteTarget.url) e.currentTarget.src = deleteTarget.url; }}
               />
-              <div className="min-w-0 overflow-hidden text-xs text-stone-500">
-                <div className="truncate font-medium text-stone-700">{deleteTarget.name}</div>
+              <div className="min-w-0 overflow-hidden text-xs text-white/45">
+                <div className="truncate font-medium text-white/70">{deleteTarget.name}</div>
                 <div className="truncate">{deleteTarget.created_at}</div>
                 <div>{formatSize(deleteTarget.size)}</div>
               </div>
             </div>
           ) : null}
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} className="rounded-xl">
+            <Button variant="outline" onClick={closeDialog} className="rounded-xl border-white/[0.1] bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white">
               取消
             </Button>
             <Button variant="destructive" onClick={() => void handleDelete()} disabled={isDeleting} className="rounded-xl">
@@ -590,11 +590,11 @@ function ImageManagerContent() {
           <DialogHeader className="gap-2">
             <DialogTitle>{deleteMode === "filtered" ? "删除匹配日期的图片" : "删除所选图片"}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-white/55">
             确认删除 {selectedCount} 张图片吗？删除后无法恢复。
           </p>
           <DialogFooter>
-            <Button variant="outline" className="rounded-xl" onClick={() => setDeleteMode(null)} disabled={isDeleting}>
+            <Button variant="outline" className="rounded-xl border-white/[0.1] bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white" onClick={() => setDeleteMode(null)} disabled={isDeleting}>
               取消
             </Button>
             <Button className="rounded-xl bg-rose-600 text-white hover:bg-rose-700" onClick={() => void confirmDelete()} disabled={isDeleting || selectedCount === 0}>
@@ -609,11 +609,11 @@ function ImageManagerContent() {
           <DialogHeader>
             <DialogTitle>删除标签</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-white/55">
             确定要删除标签 <span className="font-semibold">"{tagDeleteTarget}"</span> 吗？将从所有图片中移除该标签。
           </p>
           <DialogFooter>
-            <Button variant="outline" className="rounded-xl" onClick={() => setTagDeleteTarget(null)}>
+            <Button variant="outline" className="rounded-xl border-white/[0.1] bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white" onClick={() => setTagDeleteTarget(null)}>
               取消
             </Button>
             <Button
@@ -636,7 +636,7 @@ function ImageManagerContent() {
 export default function ImageManagerPage() {
   const { isCheckingAuth, session } = useAuthGuard(["admin"]);
   if (isCheckingAuth || !session || session.role !== "admin") {
-    return <div className="flex min-h-[40vh] items-center justify-center"><LoaderCircle className="size-5 animate-spin text-stone-400" /></div>;
+    return <div className="flex min-h-[40vh] items-center justify-center"><LoaderCircle className="size-5 animate-spin text-white/35" /></div>;
   }
   return <ImageManagerContent />;
 }

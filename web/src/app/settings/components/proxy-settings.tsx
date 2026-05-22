@@ -102,16 +102,16 @@ export function ProxySettingsCard() {
   };
 
   return (
-    <Card className="rounded-2xl border-white/80 bg-white/90 shadow-sm">
+    <Card className="rounded-2xl">
       <CardContent className="space-y-6 p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-stone-100">
-              <Wifi className="size-5 text-stone-600" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-white/[0.08]">
+              <Wifi className="size-5 text-white/60" />
             </div>
             <div>
               <h2 className="text-lg font-semibold tracking-tight">上游代理配置</h2>
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-white/40">
                 为 chatgpt.com 的请求配置出网代理，适合国内服务器部署；Sub2API / CPA 请求不受影响。
               </p>
             </div>
@@ -120,27 +120,27 @@ export function ProxySettingsCard() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
-            <LoaderCircle className="size-5 animate-spin text-stone-400" />
+            <LoaderCircle className="size-5 animate-spin text-white/35" />
           </div>
         ) : (
           <div className="space-y-4">
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
               <input
                 type="checkbox"
-                className="mt-1 size-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                className="mt-1 size-4 rounded border-white/20 accent-white"
                 checked={formEnabled}
                 onChange={(event) => setFormEnabled(event.target.checked)}
               />
               <div className="space-y-0.5">
-                <div className="text-sm font-medium text-stone-800">启用代理</div>
-                <div className="text-sm text-stone-500">
+                <div className="text-sm font-medium text-white/90">启用代理</div>
+                <div className="text-sm text-white/40">
                   关闭后 chatgpt.com 请求会直连。保存后立即生效，无需重启。
                 </div>
               </div>
             </label>
 
             <div className="space-y-2">
-              <label className="flex items-center gap-1.5 text-sm font-medium text-stone-700">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-white/60">
                 <PlugZap className="size-3.5" />
                 代理地址
               </label>
@@ -148,9 +148,9 @@ export function ProxySettingsCard() {
                 value={formUrl}
                 onChange={(event) => setFormUrl(event.target.value)}
                 placeholder="http://user:pass@host:port 或 socks5://host:port"
-                className="h-11 rounded-xl border-stone-200 bg-white font-mono text-xs"
+                className="h-11 rounded-xl font-mono text-xs"
               />
-              <div className="text-xs text-stone-400">
+              <div className="text-xs text-white/35">
                 支持 <code className="font-mono">http / https / socks4 / socks5 / socks5h</code>。
               </div>
             </div>
@@ -159,8 +159,8 @@ export function ProxySettingsCard() {
               <div
                 className={`rounded-xl border px-4 py-3 text-sm leading-6 ${
                   testResult.ok
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-rose-200 bg-rose-50 text-rose-800"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : "border-rose-500/30 bg-rose-500/10 text-rose-400"
                 }`}
               >
                 {testResult.ok ? (
@@ -175,7 +175,7 @@ export function ProxySettingsCard() {
 
             <div className="flex items-center gap-2">
               <Button
-                className="h-10 rounded-xl bg-stone-950 px-5 text-white hover:bg-stone-800"
+                className="h-10 rounded-xl bg-white px-5 text-stone-950 hover:bg-white/90"
                 onClick={() => void handleSave()}
                 disabled={isSaving || !dirty}
               >
@@ -184,7 +184,7 @@ export function ProxySettingsCard() {
               </Button>
               <Button
                 variant="outline"
-                className="h-10 rounded-xl border-stone-200 bg-white px-5 text-stone-700"
+                className="h-10 rounded-xl border-white/[0.1] bg-white/[0.06] px-5 text-white/60 hover:bg-white/[0.1] hover:text-white"
                 onClick={() => void handleTest()}
                 disabled={isTesting}
               >

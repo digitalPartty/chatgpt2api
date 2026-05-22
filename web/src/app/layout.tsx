@@ -30,7 +30,7 @@ export default function RootLayout({
             '"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif',
         }}
       >
-        <Toaster position="top-center" richColors offset={48} />
+        <Toaster position="top-center" richColors theme="dark" offset={48} />
         <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(ellipse_100%_40%_at_50%_0%,rgba(99,102,241,0.08)_0%,transparent_70%)] px-4 pt-0 pb-2 text-foreground sm:px-6 sm:pt-2 lg:px-8" style={{ backgroundColor: "#08080f" }}>
           <div className="mx-auto box-border flex min-h-screen max-w-[1440px] flex-col gap-2 pt-[env(safe-area-inset-top)] sm:gap-5 sm:pt-0">
             <TopNav />

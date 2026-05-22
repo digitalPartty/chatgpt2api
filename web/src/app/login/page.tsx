@@ -80,7 +80,7 @@ export default function LoginPage() {
                 }
               }}
               placeholder="请输入密钥"
-              className="h-13 rounded-2xl border-stone-200 bg-white px-4"
+              className="h-13 rounded-2xl border-stone-200 bg-white px-4 text-stone-950 placeholder:text-stone-400"
             />
           </div>
 
