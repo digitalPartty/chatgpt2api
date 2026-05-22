@@ -509,7 +509,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
       top: resultsViewportRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [selectedConversation?.updatedAt, selectedConversation?.turns.length, selectedConversation]);
+  }, [selectedConversationId, selectedConversation?.turns.length]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
