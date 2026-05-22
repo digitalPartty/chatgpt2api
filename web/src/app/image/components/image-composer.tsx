@@ -1,11 +1,10 @@
 "use client";
 import { AtSign, ArrowUp, Check, ChevronDown, ImagePlus, LoaderCircle, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type RefObject } from "react";
 
 import { ImageLightbox } from "@/components/image-lightbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export type AtMentionImage = {
@@ -23,7 +22,7 @@ type ImageComposerProps = {
   activeTaskCount: number;
   referenceImages: Array<{ name: string; dataUrl: string }>;
   availableImages?: AtMentionImage[];
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  textareaRef: RefObject<HTMLDivElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onPromptChange: (value: string) => void;
   onImageCountChange: (value: string) => void;
@@ -34,6 +33,32 @@ type ImageComposerProps = {
   onRemoveReferenceImage: (index: number) => void;
   onAtMentionSelect?: (image: AtMentionImage) => void;
 };
+
+function getEditorText(el: HTMLElement): string {
+  let text = "";
+  for (const node of el.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent ?? "";
+    } else if ((node as HTMLElement).dataset?.mention !== undefined) {
+      text += node.textContent ?? "";
+    } else if (node.nodeName === "BR") {
+      text += "\n";
+    } else if (node.nodeName === "DIV") {
+      text += "\n" + getEditorText(node as HTMLElement);
+    }
+  }
+  return text;
+}
+
+function getCursorOffset(el: HTMLElement): number {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return 0;
+  const range = sel.getRangeAt(0);
+  const pre = range.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(range.endContainer, range.endOffset);
+  return pre.toString().length;
+}
 
 export function ImageComposer({
   prompt,
@@ -79,18 +104,14 @@ export function ImageComposer({
   const imageSizeLabel = imageSizeOptions.find((option) => option.value === imageSize)?.label || "未指定";
 
   useEffect(() => {
-    if (!isSizeMenuOpen) {
-      return;
-    }
+    if (!isSizeMenuOpen) return;
     const handlePointerDown = (event: MouseEvent) => {
       if (!sizeMenuRef.current?.contains(event.target as Node)) {
         setIsSizeMenuOpen(false);
       }
     };
     window.addEventListener("mousedown", handlePointerDown);
-    return () => {
-      window.removeEventListener("mousedown", handlePointerDown);
-    };
+    return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [isSizeMenuOpen]);
 
   useEffect(() => {
@@ -104,78 +125,149 @@ export function ImageComposer({
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [atMentionOpen]);
 
+  // Sync external prompt clears to the DOM
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    if (prompt === "") {
+      el.innerHTML = "";
+    }
+  }, [prompt, textareaRef]);
+
   const filteredAtImages = useMemo(() => {
     if (!atMentionQuery) return availableImages;
     const q = atMentionQuery.toLowerCase();
     return availableImages.filter((img) => img.name.toLowerCase().includes(q));
   }, [availableImages, atMentionQuery]);
 
-  const detectAtMention = useCallback(
-    (value: string, cursorPos: number) => {
-      const textBeforeCursor = value.slice(0, cursorPos);
-      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
-      if (lastAtIndex !== -1) {
-        const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-        if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
-          setAtMentionOpen(true);
-          setAtMentionStart(lastAtIndex);
-          setAtMentionQuery(textAfterAt);
-          return;
-        }
+  const detectAtMention = useCallback((value: string, cursorPos: number) => {
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+        setAtMentionOpen(true);
+        setAtMentionStart(lastAtIndex);
+        setAtMentionQuery(textAfterAt);
+        return;
       }
-      setAtMentionOpen(false);
-    },
-    [],
-  );
+    }
+    setAtMentionOpen(false);
+  }, []);
+
+  const handleEditorInput = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const text = getEditorText(el);
+    detectAtMention(text, getCursorOffset(el));
+    onPromptChange(text);
+  }, [textareaRef, detectAtMention, onPromptChange]);
 
   const handleAtMentionSelect = useCallback(
     (image: AtMentionImage) => {
-      // 把 @query 替换成 @图片名，保留在 prompt 里
-      const tag = `@${image.name}`;
-      const newPrompt =
-        prompt.slice(0, atMentionStart) +
-        tag +
-        prompt.slice(atMentionStart + 1 + atMentionQuery.length);
-      onPromptChange(newPrompt);
+      const el = textareaRef.current;
+      if (!el) return;
+
+      const chip = document.createElement("span");
+      chip.contentEditable = "false";
+      chip.dataset.mention = image.id;
+      chip.textContent = `@${image.name}`;
+      chip.className =
+        "inline-flex items-center rounded-full bg-blue-500/20 px-1.5 text-blue-300 select-none";
+
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let offset = 0;
+      let targetNode: Text | null = null;
+      let targetOffset = 0;
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        const len = node.textContent?.length ?? 0;
+        if (offset + len > atMentionStart) {
+          targetNode = node;
+          targetOffset = atMentionStart - offset;
+          break;
+        }
+        offset += len;
+      }
+
+      if (targetNode) {
+        const range = document.createRange();
+        range.setStart(targetNode, targetOffset);
+        range.setEnd(targetNode, Math.min(targetOffset + 1 + atMentionQuery.length, targetNode.length));
+        range.deleteContents();
+        range.insertNode(chip);
+        const after = document.createRange();
+        after.setStartAfter(chip);
+        after.collapse(true);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(after);
+      }
+
+      onPromptChange(getEditorText(el));
       onAtMentionSelect?.(image);
       setAtMentionOpen(false);
-      requestAnimationFrame(() => {
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const pos = atMentionStart + tag.length;
-          textarea.setSelectionRange(pos, pos);
-          textarea.focus();
-        }
-      });
+      el.focus();
     },
-    [prompt, atMentionStart, atMentionQuery, onPromptChange, onAtMentionSelect, textareaRef],
+    [atMentionStart, atMentionQuery, onPromptChange, onAtMentionSelect, textareaRef],
   );
 
   const handleAtButtonClick = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart ?? prompt.length;
-    const end = textarea.selectionEnd ?? prompt.length;
-    const newPrompt = prompt.slice(0, start) + "@" + prompt.slice(end);
-    onPromptChange(newPrompt);
-    setAtMentionStart(start);
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const offset = getCursorOffset(el);
+    document.execCommand("insertText", false, "@");
+    setAtMentionStart(offset);
     setAtMentionQuery("");
     setAtMentionOpen(true);
-    requestAnimationFrame(() => {
-      textarea.setSelectionRange(start + 1, start + 1);
-      textarea.focus();
-    });
-  }, [prompt, onPromptChange, textareaRef]);
+  }, [textareaRef]);
 
-  const handleTextareaPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const imageFiles = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) {
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Escape" && atMentionOpen) {
+        e.preventDefault();
+        setAtMentionOpen(false);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void onSubmit();
+        return;
+      }
+      if (e.key === "Backspace") {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) return;
+        if (range.startOffset === 0) {
+          const prev = range.startContainer.previousSibling as HTMLElement | null;
+          if (prev?.dataset?.mention !== undefined) {
+            e.preventDefault();
+            prev.remove();
+            onPromptChange(getEditorText(textareaRef.current!));
+          }
+        }
+      }
+    },
+    [atMentionOpen, onSubmit, textareaRef, onPromptChange],
+  );
 
-    event.preventDefault();
-    void onReferenceImageChange(imageFiles);
-  };
+  const handleEditorPaste = useCallback(
+    (e: ClipboardEvent<HTMLDivElement>) => {
+      const imageFiles = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        void onReferenceImageChange(imageFiles);
+        return;
+      }
+      const text = e.clipboardData.getData("text/plain");
+      if (text) {
+        e.preventDefault();
+        document.execCommand("insertText", false, text);
+      }
+    },
+    [onReferenceImageChange],
+  );
 
   return (
     <div className="shrink-0 flex justify-center px-1 sm:px-0">
@@ -269,32 +361,19 @@ export function ImageComposer({
                 onOpenChange={setLightboxOpen}
                 onIndexChange={setLightboxIndex}
               />
-              <Textarea
+              <div
                 ref={textareaRef}
-                value={prompt}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  detectAtMention(value, event.target.selectionStart ?? value.length);
-                  onPromptChange(value);
-                }}
-                onPaste={handleTextareaPaste}
-                placeholder={
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleEditorInput}
+                onKeyDown={handleKeyDown}
+                onPaste={handleEditorPaste}
+                data-placeholder={
                   referenceImages.length > 0
                     ? "描述你希望如何修改参考图"
                     : "输入你想要生成的画面，也可直接粘贴图片"
                 }
-                onKeyDown={(event) => {
-                  if (event.key === "Escape" && atMentionOpen) {
-                    event.preventDefault();
-                    setAtMentionOpen(false);
-                    return;
-                  }
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void onSubmit();
-                  }
-                }}
-                className="min-h-[82px] resize-none rounded-[24px] border-0 bg-transparent px-4 pt-4 pb-2 text-[15px] leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 sm:min-h-[148px] sm:rounded-[32px] sm:px-6 sm:pt-6 sm:pb-20 sm:leading-7"
+                className="mention-editor min-h-[82px] w-full rounded-[24px] border-0 bg-transparent px-4 pt-4 pb-2 text-[15px] leading-6 text-white outline-none sm:min-h-[148px] sm:rounded-[32px] sm:px-6 sm:pt-6 sm:pb-20 sm:leading-7"
               />
 
               <div className="rounded-b-[24px] border-t border-white/[0.06] bg-[#26272c] px-3 pb-3 pt-2 sm:absolute sm:inset-x-0 sm:bottom-0 sm:rounded-b-none sm:border-t-0 sm:bg-gradient-to-t sm:from-[#26272c] sm:via-[#26272c]/95 sm:to-transparent sm:px-6 sm:pb-4 sm:pt-6" onClick={(event) => event.stopPropagation()}>
@@ -419,4 +498,3 @@ export function ImageComposer({
     </div>
   );
 }
-

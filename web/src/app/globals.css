@@ -136,6 +136,12 @@
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  .mention-editor:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+  }
 }
 
 @keyframes grow {

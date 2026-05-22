@@ -341,7 +341,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
   const didLoadQuotaRef = useRef(false);
   const conversationsRef = useRef<ImageConversation[]>([]);
   const resultsViewportRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [imagePrompt, setImagePrompt] = useState("");
@@ -391,25 +391,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
             images.push({ id: `${turn.id}-ref-${ref.name}`, name: ref.name, dataUrl: ref.dataUrl });
           }
         }
-        // 历史轮次中已生成的图片
-        for (const img of turn.images) {
-          if (img.status === "success") {
-            if (img.b64_json) {
-              const dataUrl = `data:image/png;base64,${img.b64_json}`;
-              const key = dataUrl.slice(0, 128);
-              if (!seen.has(key)) {
-                seen.add(key);
-                images.push({ id: img.id, name: `生成图-${img.id.slice(-6)}`, dataUrl });
-              }
-            } else if (img.url) {
-              const key = img.url;
-              if (!seen.has(key)) {
-                seen.add(key);
-                images.push({ id: img.id, name: `生成图-${img.id.slice(-6)}`, src: img.url });
-              }
-            }
-          }
-        }
+
       }
     }
     return images;
