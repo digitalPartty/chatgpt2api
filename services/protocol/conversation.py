@@ -814,6 +814,14 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
     # 判断是否使用 Codex API
     use_codex = request.model == "codex-gpt-image-2"
 
+    logger.info({
+        "event": "stream_image_outputs_with_pool_start",
+        "model": request.model,
+        "use_codex": use_codex,
+        "size": request.size,
+        "quality": request.quality,
+    })
+
     emitted = False
     last_error = ""
     for index in range(1, request.n + 1):
