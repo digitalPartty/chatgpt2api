@@ -939,10 +939,7 @@ class OpenAIBackendAPI:
         if not self.access_token:
             raise RuntimeError("access_token is required for Codex image endpoints")
 
-        self._bootstrap()
-        requirements = self._get_chat_requirements()
-
-        # 构建 Codex 请求体
+        # 构建 Codex 请求体（参考 CLIProxyAPI 实现）
         action = "edit" if images else "generate"
         tool = {
             "type": "image_generation",
@@ -967,12 +964,14 @@ class OpenAIBackendAPI:
                 data_url = f"data:{mime_type};base64,{image_b64}"
                 input_content.append({"type": "input_image", "image_url": data_url})
 
+        # 按照 CLIProxyAPI 的格式构建请求体
         payload = {
-            "model": "gpt-5.4-mini",
+            "instructions": "",  # 必须为空字符串
             "stream": True,
             "reasoning": {"effort": "medium", "summary": "auto"},
             "parallel_tool_calls": True,
             "include": ["reasoning.encrypted_content"],
+            "model": "gpt-5.4-mini",  # Codex 使用的模型
             "store": False,
             "tool_choice": {"type": "image_generation"},
             "input": [
@@ -995,20 +994,14 @@ class OpenAIBackendAPI:
             "prompt_length": len(prompt),
         })
 
-        # Codex API 使用不同的认证方式
+        # Codex API 只需要 Bearer token，不需要 Sentinel token
         path = "/backend-api/codex/responses"
-        headers = {
+        headers = self._headers(path, {
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
             "Authorization": f"Bearer {self.access_token}",
-            "OpenAI-Sentinel-Chat-Requirements-Token": requirements.token,
-            "X-Oai-Turn-Trace-Id": new_uuid(),
-        }
-        if requirements.proof_token:
-            headers["OpenAI-Sentinel-Proof-Token"] = requirements.proof_token
-
-        # 添加标准请求头
-        headers.update(self._headers(path, {}))
+            "Connection": "Keep-Alive",
+        })
 
         response = self.session.post(
             self.base_url + path,

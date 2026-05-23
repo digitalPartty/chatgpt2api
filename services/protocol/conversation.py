@@ -13,7 +13,7 @@ from services.account_service import account_service
 from services.config import config
 from services.image_storage_service import image_storage_service
 from services.openai_backend_api import ImagePollTimeoutError, OpenAIBackendAPI
-from utils.helper import IMAGE_MODELS, extract_image_from_message_content
+from utils.helper import IMAGE_MODELS, UpstreamHTTPError, extract_image_from_message_content
 from utils.log import logger
 
 
@@ -724,6 +724,15 @@ def stream_codex_image_outputs(
                 )
                 return
 
+    except UpstreamHTTPError as exc:
+        # 捕获详细的HTTP错误信息
+        logger.error({
+            "event": "codex_image_http_error",
+            "status_code": exc.status_code,
+            "body": exc.body,
+            "error": str(exc),
+        })
+        raise ImageGenerationError(f"Codex image generation failed: {exc}") from exc
     except Exception as exc:
         logger.error({"event": "codex_image_generation_error", "error": str(exc)})
         raise ImageGenerationError(f"Codex image generation failed: {exc}") from exc
