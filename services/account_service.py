@@ -112,14 +112,42 @@ class AccountService:
     def _list_ready_candidate_tokens(self, excluded_tokens: set[str] | None = None, required_account_types: set[str] | None = None) -> list[str]:
         excluded = set(excluded_tokens or set())
         required_types = set(required_account_types or set())
-        return [
-            token
-            for item in self._accounts.values()
-            if self._is_image_account_available(item)
-               and (token := item.get("access_token") or "")
-               and token not in excluded
-               and (not required_types or str(item.get("type") or "").lower() in required_types)
-        ]
+
+        # 调试日志
+        from utils.log import logger
+        logger.debug({
+            "event": "list_ready_candidate_tokens",
+            "required_types": list(required_types) if required_types else None,
+            "total_accounts": len(self._accounts)
+        })
+
+        candidates = []
+        for item in self._accounts.values():
+            token = item.get("access_token") or ""
+            if not token or token in excluded:
+                continue
+            if not self._is_image_account_available(item):
+                continue
+
+            account_type = str(item.get("type") or "").lower()
+            if required_types and account_type not in required_types:
+                logger.debug({
+                    "event": "account_filtered_by_type",
+                    "account_type": account_type,
+                    "required_types": list(required_types),
+                    "email": item.get("email")
+                })
+                continue
+
+            candidates.append(token)
+
+        logger.debug({
+            "event": "list_ready_candidate_tokens_result",
+            "candidates_count": len(candidates),
+            "required_types": list(required_types) if required_types else None
+        })
+
+        return candidates
 
     def _list_available_candidate_tokens(self, excluded_tokens: set[str] | None = None, required_account_types: set[str] | None = None) -> list[str]:
         max_concurrency = max(1, int(config.image_account_concurrency or 1))
