@@ -105,12 +105,6 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
                 message_as_error=True,
                 required_account_types={"plus", "team", "pro"},  # 要求 Plus/Team/Pro 账号
             ))
-                quality=resolved_quality,
-                use_official_api=False,
-                response_format=response_format,
-                base_url=base_url,
-                message_as_error=True,
-            ))
 
             if body.get("stream"):
                 return stream_image_chunks(outputs)
