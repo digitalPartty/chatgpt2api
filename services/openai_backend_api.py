@@ -984,16 +984,6 @@ class OpenAIBackendAPI:
             "tools": [tool],
         }
 
-        # 添加详细日志
-        logger.debug({
-            "event": "codex_image_request",
-            "size": size,
-            "quality": quality,
-            "action": action,
-            "tool": tool,
-            "prompt_length": len(prompt),
-        })
-
         # Codex API 只需要 Bearer token，不需要 Sentinel token
         path = "/backend-api/codex/responses"
         # Codex API 需要专用 headers（参考 CLIProxyAPI applyCodexHeaders），
@@ -1025,21 +1015,15 @@ class OpenAIBackendAPI:
                 stream=True,
             )
 
-            # 记录响应状态
-            logger.debug({
-                "event": "codex_api_response",
-                "status_code": response.status_code,
-                "headers": dict(response.headers),
-            })
-
-            # 如果是错误响应，读取完整的错误信息
+            # 如果是错误响应，通过 iter_content 读取 body（stream=True 时 .text 可能为空）
             if response.status_code < 200 or response.status_code >= 300:
-                # 先消费响应内容，确保 body 被完整读取（stream=True 时需要）
+                chunks = []
                 try:
-                    _ = response.content
+                    for chunk in response.iter_content(chunk_size=8192):
+                        chunks.append(chunk)
                 except Exception:
                     pass
-                error_body = response.text or ""
+                error_body = b"".join(chunks).decode("utf-8", errors="replace")
                 logger.error({
                     "event": "codex_api_error",
                     "status_code": response.status_code,
