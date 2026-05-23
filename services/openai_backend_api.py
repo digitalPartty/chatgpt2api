@@ -996,12 +996,18 @@ class OpenAIBackendAPI:
 
         # Codex API 只需要 Bearer token，不需要 Sentinel token
         path = "/backend-api/codex/responses"
-        headers = self._headers(path, {
+        # Codex API 需要专用 headers（参考 CLIProxyAPI applyCodexHeaders），
+        # 不能使用 _headers() 的 ChatGPT web session headers，否则 Cloudflare 会拦截
+        session_id = new_uuid()
+        headers = {
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
             "Authorization": f"Bearer {self.access_token}",
             "Connection": "Keep-Alive",
-        })
+            "Originator": "codex_cli_rs",
+            "User-Agent": "codex_cli_rs/0.118.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9",
+            "Session_id": session_id,
+        }
 
         logger.info({
             "event": "codex_api_request",
@@ -1052,10 +1058,6 @@ class OpenAIBackendAPI:
                 "error_type": type(exc).__name__,
             })
             raise
-        try:
-            yield from iter_sse_payloads(response)
-        finally:
-            response.close()
 
     def _bootstrap(self) -> None:
         """预热首页，并提取 PoW 相关脚本引用。"""
