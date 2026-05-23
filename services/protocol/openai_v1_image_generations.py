@@ -81,6 +81,9 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
     response_format = str(body.get("response_format") or "b64_json")
     base_url = str(body.get("base_url") or "") or None
 
+    # 调试日志：记录接收到的参数
+    logger.debug({"event": "image_generation_request", "quality": quality, "size": size, "model": model})
+
     # 判断是否使用 Codex 模型（2K/4K）
     use_codex = quality in ("2k", "4k")
 

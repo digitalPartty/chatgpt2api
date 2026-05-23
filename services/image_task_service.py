@@ -12,6 +12,7 @@ from services.config import DATA_DIR, config
 from services.content_filter import request_text
 from services.log_service import LOG_TYPE_CALL, log_service
 from services.protocol import openai_v1_image_edit, openai_v1_image_generations
+from utils.log import logger
 
 TASK_STATUS_QUEUED = "queued"
 TASK_STATUS_RUNNING = "running"
@@ -228,6 +229,8 @@ class ImageTaskService:
         started = time.time()
         self._update_task(key, status=TASK_STATUS_RUNNING, error="")
         try:
+            # 调试日志：记录 payload 内容
+            logger.debug({"event": "image_task_payload", "mode": mode, "quality": payload.get("quality"), "size": payload.get("size"), "model": payload.get("model")})
             handler = self.edit_handler if mode == "edit" else self.generation_handler
             result = handler(payload)
             if not isinstance(result, dict):
