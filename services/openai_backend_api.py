@@ -1003,14 +1003,55 @@ class OpenAIBackendAPI:
             "Connection": "Keep-Alive",
         })
 
-        response = self.session.post(
-            self.base_url + path,
-            headers=headers,
-            json=payload,
-            timeout=300,
-            stream=True,
-        )
-        ensure_ok(response, path)
+        logger.info({
+            "event": "codex_api_request",
+            "url": self.base_url + path,
+            "size": size,
+            "quality": quality,
+        })
+
+        try:
+            response = self.session.post(
+                self.base_url + path,
+                headers=headers,
+                json=payload,
+                timeout=300,
+                stream=True,
+            )
+
+            # 记录响应状态
+            logger.debug({
+                "event": "codex_api_response",
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+            })
+
+            # 如果是错误响应，读取完整的错误信息
+            if response.status_code < 200 or response.status_code >= 300:
+                error_body = response.text
+                logger.error({
+                    "event": "codex_api_error",
+                    "status_code": response.status_code,
+                    "body": error_body,
+                    "url": self.base_url + path,
+                })
+                response.close()
+                raise UpstreamHTTPError(path, response.status_code, error_body)
+
+            try:
+                yield from iter_sse_payloads(response)
+            finally:
+                response.close()
+
+        except UpstreamHTTPError:
+            raise
+        except Exception as exc:
+            logger.error({
+                "event": "codex_api_exception",
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            })
+            raise
         try:
             yield from iter_sse_payloads(response)
         finally:
