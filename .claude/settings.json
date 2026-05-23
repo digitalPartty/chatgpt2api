@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "Bash(curl -s \"https://developers.openai.com/api/docs/guides/image-generation\")",
+      "WebSearch"
     ]
   }
 }

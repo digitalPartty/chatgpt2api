@@ -18,6 +18,7 @@ type ImageComposerProps = {
   prompt: string;
   imageCount: string;
   imageSize: string;
+  imageQuality: string;
   availableQuota: string;
   activeTaskCount: number;
   referenceImages: Array<{ name: string; dataUrl: string }>;
@@ -27,6 +28,7 @@ type ImageComposerProps = {
   onPromptChange: (value: string) => void;
   onImageCountChange: (value: string) => void;
   onImageSizeChange: (value: string) => void;
+  onImageQualityChange: (value: string) => void;
   onSubmit: () => void | Promise<void>;
   onPickReferenceImage: () => void;
   onReferenceImageChange: (files: File[]) => void | Promise<void>;
@@ -64,6 +66,7 @@ export function ImageComposer({
   prompt,
   imageCount,
   imageSize,
+  imageQuality,
   availableQuota,
   activeTaskCount,
   referenceImages,
@@ -73,6 +76,7 @@ export function ImageComposer({
   onPromptChange,
   onImageCountChange,
   onImageSizeChange,
+  onImageQualityChange,
   onSubmit,
   onPickReferenceImage,
   onReferenceImageChange,
@@ -83,11 +87,15 @@ export function ImageComposer({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
   const [sizeMenuPos, setSizeMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [isQualityMenuOpen, setIsQualityMenuOpen] = useState(false);
+  const [qualityMenuPos, setQualityMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [atMentionOpen, setAtMentionOpen] = useState(false);
   const [atMentionStart, setAtMentionStart] = useState(-1);
   const [atMentionQuery, setAtMentionQuery] = useState("");
   const sizeMenuRef = useRef<HTMLDivElement>(null);
   const sizeMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const qualityMenuRef = useRef<HTMLDivElement>(null);
+  const qualityMenuBtnRef = useRef<HTMLButtonElement>(null);
   const atMentionRef = useRef<HTMLDivElement>(null);
   const lightboxImages = useMemo(
     () => referenceImages.map((image, index) => ({ id: `${image.name}-${index}`, src: image.dataUrl })),
@@ -102,6 +110,12 @@ export function ImageComposer({
     { value: "9:16", label: "9:16 (竖版)" },
   ];
   const imageSizeLabel = imageSizeOptions.find((option) => option.value === imageSize)?.label || "未指定";
+  const imageQualityOptions = [
+    { value: "1k", label: "1K" },
+    { value: "2k", label: "2K" },
+    { value: "4k", label: "4K" },
+  ];
+  const imageQualityLabel = imageQualityOptions.find((option) => option.value === imageQuality)?.label || "1K";
 
   useEffect(() => {
     if (!isSizeMenuOpen) return;
@@ -113,6 +127,17 @@ export function ImageComposer({
     window.addEventListener("mousedown", handlePointerDown);
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [isSizeMenuOpen]);
+
+  useEffect(() => {
+    if (!isQualityMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!qualityMenuRef.current?.contains(event.target as Node)) {
+        setIsQualityMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [isQualityMenuOpen]);
 
   useEffect(() => {
     if (!atMentionOpen) return;
@@ -467,6 +492,60 @@ export function ImageComposer({
                                 onClick={() => {
                                   onImageSizeChange(option.value);
                                   setIsSizeMenuOpen(false);
+                                }}
+                              >
+                                <span>{option.label}</span>
+                                {active ? <Check className="size-4" /> : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div
+                      className="relative flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.06] px-2 py-0.5 text-[11px] sm:h-auto sm:gap-2 sm:px-3 sm:py-1 sm:text-[13px]"
+                    >
+                      <span className="hidden font-medium text-white/60 sm:inline sm:text-sm">清晰度</span>
+                      <button
+                        ref={qualityMenuBtnRef}
+                        type="button"
+                        className="flex h-7 w-[48px] items-center justify-between bg-transparent text-left text-xs font-bold text-white/80 sm:h-8 sm:w-[64px]"
+                        onClick={() => {
+                          if (!isQualityMenuOpen && qualityMenuBtnRef.current) {
+                            const rect = qualityMenuBtnRef.current.getBoundingClientRect();
+                            const menuWidth = Math.min(140, window.innerWidth - 32);
+                            setQualityMenuPos({ top: rect.top - 8, left: Math.max(16, Math.min(rect.left, window.innerWidth - menuWidth - 16)) });
+                          }
+                          setIsQualityMenuOpen((open) => !open);
+                        }}
+                      >
+                        <span className="truncate">{imageQualityLabel}</span>
+                        <ChevronDown className={cn("size-4 shrink-0 opacity-60 transition", isQualityMenuOpen && "rotate-180")} />
+                      </button>
+                      {isQualityMenuOpen ? (
+                        <div
+                          ref={qualityMenuRef}
+                          className="fixed z-[80] max-h-[45dvh] overflow-y-auto rounded-3xl border border-white/[0.08] bg-[#2e2f35] p-2 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.6)]"
+                          style={{
+                            top: qualityMenuPos.top,
+                            left: qualityMenuPos.left,
+                            transform: "translateY(-100%)",
+                            width: "min(140px, calc(100vw - 2rem))",
+                          }}
+                        >
+                          {imageQualityOptions.map((option) => {
+                            const active = option.value === imageQuality;
+                            return (
+                              <button
+                                key={option.label}
+                                type="button"
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm text-white/65 transition hover:bg-white/[0.08] hover:text-white",
+                                  active && "bg-white/[0.1] font-medium text-white",
+                                )}
+                                onClick={() => {
+                                  onImageQualityChange(option.value);
+                                  setIsQualityMenuOpen(false);
                                 }}
                               >
                                 <span>{option.label}</span>

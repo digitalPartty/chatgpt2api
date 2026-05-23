@@ -32,6 +32,7 @@ export type ImageTurn = {
   referenceImages: StoredReferenceImage[];
   count: number;
   size: string;
+  quality?: string;
   images: StoredImage[];
   createdAt: string;
   status: ImageTurnStatus;

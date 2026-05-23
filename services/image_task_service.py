@@ -109,6 +109,7 @@ class ImageTaskService:
         prompt: str,
         model: str,
         size: str | None,
+        quality: str | None,
         base_url: str,
     ) -> dict[str, Any]:
         payload = {
@@ -116,6 +117,7 @@ class ImageTaskService:
             "model": model,
             "n": 1,
             "size": size,
+            "quality": quality,
             "response_format": "url",
             "base_url": base_url,
         }
@@ -129,6 +131,7 @@ class ImageTaskService:
         prompt: str,
         model: str,
         size: str | None,
+        quality: str | None,
         base_url: str,
         images: list[tuple[bytes, str, str]],
     ) -> dict[str, Any]:
@@ -138,6 +141,7 @@ class ImageTaskService:
             "model": model,
             "n": 1,
             "size": size,
+            "quality": quality,
             "response_format": "url",
             "base_url": base_url,
         }

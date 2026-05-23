@@ -133,19 +133,129 @@ def assistant_history_messages(messages: list[dict[str, Any]]) -> list[str]:
     return [str(item.get("content") or "") for item in messages if item.get("role") == "assistant" and item.get("content")]
 
 
-def build_image_prompt(prompt: str, size: str | None) -> str:
+def resolve_image_size_and_quality(size: str | None, quality: str | None) -> tuple[str | None, str]:
+    """
+    将用户选择的比例和清晰度映射到 GPT Image 2 的 size 和 quality 参数。
+
+    参数:
+        size: 比例，如 "1:1", "16:9", "9:16", "4:3", "3:4"
+        quality: 清晰度，如 "1k", "2k", "4k"
+
+    返回:
+        (resolved_size, resolved_quality) 元组
+        - resolved_size: 像素尺寸，如 "1024x1024", "2048x2048", "3840x2160"
+        - resolved_quality: 质量参数，如 "medium", "high"
+    """
+    # 默认值
+    if not quality or quality not in {"1k", "2k", "4k"}:
+        quality = "1k"
+
+    # 如果没有指定比例，返回 None（让 API 自动选择）
     if not size:
-        return prompt
+        resolved_quality = "medium" if quality == "1k" else "high"
+        return None, resolved_quality
+
+    # 定义尺寸映射
+    size_mapping = {
+        # 1K 分辨率
+        "1k": {
+            "1:1": "1024x1024",
+            "16:9": "1536x1024",
+            "9:16": "1024x1536",
+            "4:3": "1024x768",
+            "3:4": "768x1024",
+        },
+        # 2K 分辨率
+        "2k": {
+            "1:1": "2048x2048",
+            "16:9": "2048x1152",
+            "9:16": "1152x2048",
+            "4:3": "2048x1536",
+            "3:4": "1536x2048",
+        },
+        # 4K 分辨率
+        "4k": {
+            "1:1": "2880x2880",  # 接近 4K 的正方形
+            "16:9": "3840x2160",
+            "9:16": "2160x3840",
+            "4:3": "3072x2304",
+            "3:4": "2304x3072",
+        },
+    }
+
+    # 获取对应的像素尺寸
+    resolved_size = size_mapping.get(quality, {}).get(size)
+
+    # 如果没有找到映射，使用提示词方式（保持向后兼容）
+    if not resolved_size:
+        resolved_size = None
+
+    # 设置 quality 参数
+    resolved_quality = "medium" if quality == "1k" else "high"
+
+    return resolved_size, resolved_quality
+
+
+def build_image_prompt(prompt: str, size: str | None, quality: str | None = None) -> str:
+    """
+    构建图片生成的提示词。
+
+    参数:
+        prompt: 用户输入的提示词
+        size: 比例或像素尺寸，如 "1:1", "2048x2048"
+        quality: 清晰度，如 "1k", "2k", "4k" 或 "low", "medium", "high"
+    """
+    base_prompt = prompt.strip()
+
+    # 如果 size 是像素尺寸格式（如 "2048x2048"），提取比例信息
+    if size and "x" in size:
+        try:
+            width, height = map(int, size.split("x"))
+            ratio = width / height
+            if 0.95 <= ratio <= 1.05:
+                size_hint = "正方形构图，主体居中"
+            elif ratio > 1.5:
+                size_hint = "横屏构图，适合宽画幅展示"
+            elif ratio < 0.67:
+                size_hint = "竖屏构图，适合竖版画幅展示"
+            else:
+                size_hint = f"宽高比为 {width}:{height}"
+
+            # 根据像素数判断清晰度
+            total_pixels = width * height
+            if total_pixels >= 7000000:  # 4K 级别
+                quality_hint = "，要求超高清晰度、丰富细节、4K 级别画质"
+            elif total_pixels >= 3000000:  # 2K 级别
+                quality_hint = "，要求高清晰度、丰富细节、2K 级别画质"
+            else:
+                quality_hint = ""
+
+            return f"{base_prompt}\n\n输出为 {size_hint}{quality_hint}。"
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    # 如果 size 是比例格式（如 "1:1"）
+    if not size:
+        return base_prompt
     if size not in {"1:1", "16:9", "9:16", "4:3", "3:4"}:
-        return f"{prompt.strip()}\n\n输出图片，宽高比为 {size}。"
+        return f"{base_prompt}\n\n输出图片，宽高比为 {size}。"
+
     hint = {
-        "1:1": "输出为 1:1 正方形构图，主体居中，适合正方形画幅。",
-        "16:9": "输出为 16:9 横屏构图，适合宽画幅展示。",
-        "9:16": "输出为 9:16 竖屏构图，适合竖版画幅展示。",
-        "4:3": "输出为 4:3 比例，兼顾宽度与高度，适合展示画面细节。",
-        "3:4": "输出为 3:4 比例，纵向构图，适合人物肖像或竖向场景。",
+        "1:1": "输出为 1:1 正方形构图，主体居中，适合正方形画幅",
+        "16:9": "输出为 16:9 横屏构图，适合宽画幅展示",
+        "9:16": "输出为 9:16 竖屏构图，适合竖版画幅展示",
+        "4:3": "输出为 4:3 比例，兼顾宽度与高度，适合展示画面细节",
+        "3:4": "输出为 3:4 比例，纵向构图，适合人物肖像或竖向场景",
     }[size]
-    return f"{prompt.strip()}\n\n{hint}"
+
+    # 根据 quality 添加清晰度要求
+    quality_hint = ""
+    if quality in {"2k", "high"}:
+        quality_hint = "，要求高清晰度、丰富细节、2K 级别画质"
+    elif quality in {"4k"}:
+        quality_hint = "，要求超高清晰度、丰富细节、4K 级别画质"
+
+    return f"{base_prompt}\n\n{hint}{quality_hint}。"
 
 
 def encoding_for_model(model: str):
@@ -215,6 +325,8 @@ class ConversationRequest:
     images: list[str] | None = None
     n: int = 1
     size: str | None = None
+    quality: str | None = None
+    use_official_api: bool = False
     response_format: str = "b64_json"
     base_url: str | None = None
     message_as_error: bool = False
@@ -478,12 +590,13 @@ def conversation_events(
     prompt: str = "",
     images: list[str] | None = None,
     size: str | None = None,
+    quality: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     normalized = normalize_messages(messages or ([{"role": "user", "content": prompt}] if prompt else []))
     image_model = str(model or "").strip() in IMAGE_MODELS
     history_text = "" if image_model else assistant_history_text(normalized)
     history_messages = [] if image_model else assistant_history_messages(normalized)
-    final_prompt = prompt_with_global_system(build_image_prompt(prompt, size)) if image_model else prompt
+    final_prompt = prompt_with_global_system(build_image_prompt(prompt, size, quality)) if image_model else prompt
     payloads = backend.stream_conversation(
         messages=normalized,
         model=model,
@@ -545,6 +658,7 @@ def stream_image_outputs(
             model=request.model,
             images=request.images or [],
             size=request.size,
+            quality=request.quality,
     ):
         last = event
         if event.get("type") == "conversation.delta":
