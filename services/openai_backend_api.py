@@ -985,10 +985,34 @@ class OpenAIBackendAPI:
             "tools": [tool],
         }
 
+        # 添加详细日志
+        logger.debug({
+            "event": "codex_image_request",
+            "size": size,
+            "quality": quality,
+            "action": action,
+            "tool": tool,
+            "prompt_length": len(prompt),
+        })
+
+        # Codex API 使用不同的认证方式
         path = "/backend-api/codex/responses"
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "Authorization": f"Bearer {self.access_token}",
+            "OpenAI-Sentinel-Chat-Requirements-Token": requirements.token,
+            "X-Oai-Turn-Trace-Id": new_uuid(),
+        }
+        if requirements.proof_token:
+            headers["OpenAI-Sentinel-Proof-Token"] = requirements.proof_token
+
+        # 添加标准请求头
+        headers.update(self._headers(path, {}))
+
         response = self.session.post(
             self.base_url + path,
-            headers=self._image_headers(path, requirements, accept="text/event-stream"),
+            headers=headers,
             json=payload,
             timeout=300,
             stream=True,
