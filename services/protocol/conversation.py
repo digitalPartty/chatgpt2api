@@ -840,10 +840,14 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
 
     emitted = False
     last_error = ""
+    rate_limited_tokens: set[str] = set()
     for index in range(1, request.n + 1):
         while True:
             try:
-                token = account_service.get_available_access_token(required_account_types=request.required_account_types)
+                token = account_service.get_available_access_token(
+                    required_account_types=request.required_account_types,
+                    excluded_tokens=rate_limited_tokens or None,
+                )
             except RuntimeError as exc:
                 if emitted:
                     return
@@ -883,6 +887,7 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
             except CodexRateLimitError as exc:
                 # Codex API 429 rate limit - 标记账号并尝试其他账号
                 account_service.mark_image_result(token, False)
+                rate_limited_tokens.add(token)
                 logger.warning({
                     "event": "codex_rate_limit",
                     "token": token[:16] + "...",
