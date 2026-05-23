@@ -921,6 +921,84 @@ class OpenAIBackendAPI:
         finally:
             response.close()
 
+    def stream_codex_image_generation(
+            self,
+            prompt: str,
+            size: str = "auto",
+            quality: str = "medium",
+            images: Optional[list[str]] = None,
+    ) -> Iterator[str]:
+        """使用 Codex API 生成图片，支持直接指定分辨率。
+
+        参数:
+            prompt: 图片描述
+            size: 分辨率，如 "2048x1152", "1536x1024", "auto"
+            quality: 质量，"medium" 或 "high"
+            images: 可选的参考图片列表（用于图片编辑）
+        """
+        if not self.access_token:
+            raise RuntimeError("access_token is required for Codex image endpoints")
+
+        self._bootstrap()
+        requirements = self._get_chat_requirements()
+
+        # 构建 Codex 请求体
+        action = "edit" if images else "generate"
+        tool = {
+            "type": "image_generation",
+            "action": action,
+            "model": "gpt-image-2",
+            "size": size,
+            "quality": quality,
+            "output_format": "png",
+            "moderation": "auto",
+        }
+
+        # 构建输入内容
+        input_content = [{"type": "input_text", "text": prompt}]
+
+        # 如果有参考图片，上传并添加到输入
+        if images:
+            for image in images:
+                image_data = self._decode_image_base64(image)
+                image_b64 = base64.b64encode(image_data).decode("utf-8")
+                img = Image.open(BytesIO(image_data))
+                mime_type = Image.MIME.get(img.format, "image/png")
+                data_url = f"data:{mime_type};base64,{image_b64}"
+                input_content.append({"type": "input_image", "image_url": data_url})
+
+        payload = {
+            "model": "gpt-5.4-mini",
+            "stream": True,
+            "reasoning": {"effort": "medium", "summary": "auto"},
+            "parallel_tool_calls": True,
+            "include": ["reasoning.encrypted_content"],
+            "store": False,
+            "tool_choice": {"type": "image_generation"},
+            "input": [
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": input_content,
+                }
+            ],
+            "tools": [tool],
+        }
+
+        path = "/backend-api/codex/responses"
+        response = self.session.post(
+            self.base_url + path,
+            headers=self._image_headers(path, requirements, accept="text/event-stream"),
+            json=payload,
+            timeout=300,
+            stream=True,
+        )
+        ensure_ok(response, path)
+        try:
+            yield from iter_sse_payloads(response)
+        finally:
+            response.close()
+
     def _bootstrap(self) -> None:
         """预热首页，并提取 PoW 相关脚本引用。"""
         response = self.session.get(

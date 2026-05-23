@@ -646,6 +646,89 @@ def collect_text(backend: OpenAIBackendAPI, request: ConversationRequest) -> str
     return "".join(stream_text_deltas(backend, request))
 
 
+def stream_codex_image_outputs(
+        backend: OpenAIBackendAPI,
+        request: ConversationRequest,
+        index: int = 1,
+        total: int = 1,
+) -> Iterator[ImageOutput]:
+    """使用 Codex API 生成图片，支持直接指定分辨率。"""
+    try:
+        for payload in backend.stream_codex_image_generation(
+                prompt=request.prompt,
+                size=request.size or "auto",
+                quality=request.quality or "medium",
+                images=request.images or [],
+        ):
+            if not payload:
+                continue
+
+            # 解析 SSE 事件
+            try:
+                data = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+
+            event_type = data.get("type", "")
+
+            # 处理部分图片事件
+            if event_type == "response.image_generation_call.partial_image":
+                yield ImageOutput(
+                    kind="progress",
+                    model=request.model,
+                    index=index,
+                    total=total,
+                    upstream_event_type=event_type,
+                )
+                continue
+
+            # 处理完成事件
+            if event_type == "response.completed":
+                # 从 response.output 中提取图片结果
+                output_items = data.get("response", {}).get("output", [])
+                image_results = []
+
+                for item in output_items:
+                    if item.get("type") == "image_generation_call":
+                        result_b64 = item.get("result", "")
+                        if result_b64:
+                            image_results.append({"b64_json": result_b64})
+
+                if image_results:
+                    # 格式化为标准响应
+                    formatted_data = format_image_result(
+                        image_results,
+                        request.prompt,
+                        request.response_format,
+                        request.base_url,
+                        data.get("response", {}).get("created_at", int(time.time())),
+                    )["data"]
+
+                    if formatted_data:
+                        yield ImageOutput(
+                            kind="result",
+                            model=request.model,
+                            index=index,
+                            total=total,
+                            data=formatted_data,
+                        )
+                        return
+
+                # 如果没有图片结果，可能是被拒绝
+                yield ImageOutput(
+                    kind="message",
+                    model=request.model,
+                    index=index,
+                    total=total,
+                    text="Image generation was rejected or failed",
+                )
+                return
+
+    except Exception as exc:
+        logger.error({"event": "codex_image_generation_error", "error": str(exc)})
+        raise ImageGenerationError(f"Codex image generation failed: {exc}") from exc
+
+
 def stream_image_outputs(
         backend: OpenAIBackendAPI,
         request: ConversationRequest,
@@ -728,6 +811,9 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
     if str(request.model or "").strip() not in IMAGE_MODELS:
         raise ImageGenerationError("unsupported image model,supported models: " + ", ".join(IMAGE_MODELS))
 
+    # 判断是否使用 Codex API
+    use_codex = request.model == "codex-gpt-image-2"
+
     emitted = False
     last_error = ""
     for index in range(1, request.n + 1):
@@ -744,7 +830,13 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
             returned_result = False
             try:
                 backend = OpenAIBackendAPI(access_token=token)
-                for output in stream_image_outputs(backend, request, index, request.n):
+                # 根据模型选择不同的生成方法
+                if use_codex:
+                    output_stream = stream_codex_image_outputs(backend, request, index, request.n)
+                else:
+                    output_stream = stream_image_outputs(backend, request, index, request.n)
+
+                for output in output_stream:
                     if output.kind == "message" and request.message_as_error:
                         raise ImageGenerationError(
                             output.text or "Image generation was rejected by upstream policy.",
