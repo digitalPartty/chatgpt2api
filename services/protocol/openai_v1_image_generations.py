@@ -92,12 +92,19 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
         resolved_size, resolved_quality = resolve_codex_size_and_quality(size, quality)
 
         try:
-            # 使用 codex-gpt-image-2 模型
+            # 使用 codex-gpt-image-2 模型，要求 Plus/Team/Pro 账号
             outputs = stream_image_outputs_with_pool(ConversationRequest(
                 prompt=prompt,
                 model="codex-gpt-image-2",  # 使用 Codex 模型
                 n=n,
                 size=resolved_size,
+                quality=resolved_quality,
+                use_official_api=False,
+                response_format=response_format,
+                base_url=base_url,
+                message_as_error=True,
+                required_account_types={"plus", "team", "pro"},  # 要求 Plus/Team/Pro 账号
+            ))
                 quality=resolved_quality,
                 use_official_api=False,
                 response_format=response_format,

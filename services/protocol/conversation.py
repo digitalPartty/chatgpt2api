@@ -330,6 +330,7 @@ class ConversationRequest:
     response_format: str = "b64_json"
     base_url: str | None = None
     message_as_error: bool = False
+    required_account_types: set[str] | None = None
 
 
 @dataclass
@@ -732,7 +733,7 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
     for index in range(1, request.n + 1):
         while True:
             try:
-                token = account_service.get_available_access_token()
+                token = account_service.get_available_access_token(required_account_types=request.required_account_types)
             except RuntimeError as exc:
                 if emitted:
                     return

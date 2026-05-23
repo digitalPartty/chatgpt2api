@@ -109,30 +109,34 @@ class AccountService:
         with self._lock:
             return list(self._accounts)
 
-    def _list_ready_candidate_tokens(self, excluded_tokens: set[str] | None = None) -> list[str]:
+    def _list_ready_candidate_tokens(self, excluded_tokens: set[str] | None = None, required_account_types: set[str] | None = None) -> list[str]:
         excluded = set(excluded_tokens or set())
+        required_types = set(required_account_types or set())
         return [
             token
             for item in self._accounts.values()
             if self._is_image_account_available(item)
                and (token := item.get("access_token") or "")
                and token not in excluded
+               and (not required_types or str(item.get("type") or "").lower() in required_types)
         ]
 
-    def _list_available_candidate_tokens(self, excluded_tokens: set[str] | None = None) -> list[str]:
+    def _list_available_candidate_tokens(self, excluded_tokens: set[str] | None = None, required_account_types: set[str] | None = None) -> list[str]:
         max_concurrency = max(1, int(config.image_account_concurrency or 1))
         return [
             token
-            for token in self._list_ready_candidate_tokens(excluded_tokens)
+            for token in self._list_ready_candidate_tokens(excluded_tokens, required_account_types)
             if int(self._image_inflight.get(token, 0)) < max_concurrency
         ]
 
-    def _acquire_next_candidate_token(self, excluded_tokens: set[str] | None = None) -> str:
+    def _acquire_next_candidate_token(self, excluded_tokens: set[str] | None = None, required_account_types: set[str] | None = None) -> str:
         with self._image_slot_condition:
             while True:
-                if not self._list_ready_candidate_tokens(excluded_tokens):
+                if not self._list_ready_candidate_tokens(excluded_tokens, required_account_types):
+                    if required_account_types:
+                        raise RuntimeError(f"no available {'/'.join(sorted(required_account_types))} account for this operation")
                     raise RuntimeError("no available image quota")
-                tokens = self._list_available_candidate_tokens(excluded_tokens)
+                tokens = self._list_available_candidate_tokens(excluded_tokens, required_account_types)
                 if tokens:
                     access_token = tokens[self._index % len(tokens)]
                     self._index += 1
@@ -151,10 +155,10 @@ class AccountService:
                 self._image_inflight[access_token] = current_inflight - 1
             self._image_slot_condition.notify_all()
 
-    def get_available_access_token(self) -> str:
+    def get_available_access_token(self, required_account_types: set[str] | None = None) -> str:
         attempted_tokens: set[str] = set()
         while True:
-            access_token = self._acquire_next_candidate_token(excluded_tokens=attempted_tokens)
+            access_token = self._acquire_next_candidate_token(excluded_tokens=attempted_tokens, required_account_types=required_account_types)
             attempted_tokens.add(access_token)
             try:
                 account = self.fetch_remote_info(access_token, "get_available_access_token")
