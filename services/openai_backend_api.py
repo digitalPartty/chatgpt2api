@@ -1034,7 +1034,12 @@ class OpenAIBackendAPI:
 
             # 如果是错误响应，读取完整的错误信息
             if response.status_code < 200 or response.status_code >= 300:
-                error_body = response.text
+                # 先消费响应内容，确保 body 被完整读取（stream=True 时需要）
+                try:
+                    _ = response.content
+                except Exception:
+                    pass
+                error_body = response.text or ""
                 logger.error({
                     "event": "codex_api_error",
                     "status_code": response.status_code,

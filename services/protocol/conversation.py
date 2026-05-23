@@ -43,6 +43,11 @@ class ImageGenerationError(Exception):
         }
 
 
+class CodexRateLimitError(ImageGenerationError):
+    """Codex API 返回 429 rate limit，应尝试其他账号重试。"""
+    pass
+
+
 def is_token_invalid_error(message: str) -> bool:
     text = str(message or "").lower()
     return (
@@ -732,6 +737,8 @@ def stream_codex_image_outputs(
             "body": exc.body,
             "error": str(exc),
         })
+        if exc.status_code == 429:
+            raise CodexRateLimitError(f"Codex rate limit: {exc}", status_code=429) from exc
         raise ImageGenerationError(f"Codex image generation failed: {exc}") from exc
     except Exception as exc:
         logger.error({"event": "codex_image_generation_error", "error": str(exc)})
@@ -873,6 +880,15 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
                 break
             except ImagePollTimeoutError:
                 raise
+            except CodexRateLimitError as exc:
+                # Codex API 429 rate limit - 标记账号并尝试其他账号
+                account_service.mark_image_result(token, False)
+                logger.warning({
+                    "event": "codex_rate_limit",
+                    "token": token[:16] + "...",
+                    "error": str(exc),
+                })
+                continue
             except ImageGenerationError:
                 account_service.mark_image_result(token, False)
                 raise
