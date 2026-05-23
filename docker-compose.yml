@@ -22,4 +22,4 @@ networks:
     name: chatgpt2api-net
   sub2api-network:
     external: true
-    name: sub2api-network  # 使用 sub2api 的网络
+    name: deploy_sub2api-network  # 使用 sub2api 的实际网络名称
