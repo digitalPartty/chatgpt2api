@@ -658,6 +658,8 @@ def stream_codex_image_outputs(
         total: int = 1,
 ) -> Iterator[ImageOutput]:
     """使用 Codex API 生成图片，支持直接指定分辨率。"""
+    collected_images = []  # 收集图片结果
+
     try:
         for payload in backend.stream_codex_image_generation(
                 prompt=request.prompt,
@@ -687,15 +689,53 @@ def stream_codex_image_outputs(
                 )
                 continue
 
+            # 处理图片输出项完成事件 (关键!)
+            if event_type == "response.output_item.done":
+                item = data.get("item", {})
+                if item.get("type") == "image_generation_call":
+                    result_b64 = item.get("result", "")
+                    if result_b64:
+                        collected_images.append({"b64_json": result_b64})
+                        logger.debug({
+                            "event": "codex_image_collected",
+                            "image_count": len(collected_images),
+                        })
+                continue
+
             # 处理完成事件
             if event_type == "response.completed":
-                # 从 response.output 中提取图片结果
+                # 优先使用收集到的图片结果
+                if collected_images:
+                    logger.info({
+                        "event": "codex_images_success",
+                        "image_count": len(collected_images),
+                    })
+                    # 格式化为标准响应
+                    formatted_data = format_image_result(
+                        collected_images,
+                        request.prompt,
+                        request.response_format,
+                        request.base_url,
+                        data.get("response", {}).get("created_at", int(time.time())),
+                    )["data"]
+
+                    if formatted_data:
+                        yield ImageOutput(
+                            kind="result",
+                            model=request.model,
+                            index=index,
+                            total=total,
+                            data=formatted_data,
+                        )
+                        return
+
+                # 如果没有收集到图片,尝试从 response.output 中提取(兼容旧格式)
                 output_items = data.get("response", {}).get("output", [])
                 image_results = []
 
-                # 添加调试日志
                 logger.debug({
                     "event": "codex_response_completed",
+                    "collected_images": len(collected_images),
                     "output_items_count": len(output_items),
                     "output_types": [item.get("type") for item in output_items] if output_items else [],
                 })
@@ -729,8 +769,8 @@ def stream_codex_image_outputs(
                 # 如果没有图片结果，可能是被拒绝
                 logger.warning({
                     "event": "codex_no_image_result",
+                    "collected_images": len(collected_images),
                     "output_items": output_items,
-                    "full_response": data.get("response", {}),
                 })
                 yield ImageOutput(
                     kind="message",
