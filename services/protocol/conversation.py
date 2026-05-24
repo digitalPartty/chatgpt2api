@@ -693,6 +693,13 @@ def stream_codex_image_outputs(
                 output_items = data.get("response", {}).get("output", [])
                 image_results = []
 
+                # 添加调试日志
+                logger.debug({
+                    "event": "codex_response_completed",
+                    "output_items_count": len(output_items),
+                    "output_types": [item.get("type") for item in output_items] if output_items else [],
+                })
+
                 for item in output_items:
                     if item.get("type") == "image_generation_call":
                         result_b64 = item.get("result", "")
@@ -720,6 +727,11 @@ def stream_codex_image_outputs(
                         return
 
                 # 如果没有图片结果，可能是被拒绝
+                logger.warning({
+                    "event": "codex_no_image_result",
+                    "output_items": output_items,
+                    "full_response": data.get("response", {}),
+                })
                 yield ImageOutput(
                     kind="message",
                     model=request.model,
