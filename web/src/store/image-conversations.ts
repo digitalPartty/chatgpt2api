@@ -137,6 +137,7 @@ function normalizeTurn(turn: ImageTurn & Record<string, unknown>): ImageTurn {
     referenceImages: getLegacyReferenceImages(turn),
     count: Math.max(1, Number(turn.count || normalizedImages.length || 1)),
     size: typeof turn.size === "string" ? turn.size : "",
+    quality: typeof turn.quality === "string" ? turn.quality : undefined,
     images: normalizedImages,
     createdAt: String(turn.createdAt || new Date().toISOString()),
     status:

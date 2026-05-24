@@ -844,6 +844,7 @@ function ImagePageContent({ isAdmin }: { isAdmin: boolean }) {
     setImagePrompt(turn.prompt);
     setImageCount(String(Math.max(1, turn.count || turn.images.length || 1)));
     setImageSize(turn.size);
+    setImageQuality(turn.quality || "1k");
     setReferenceImages(turn.referenceImages);
     setReferenceImageFiles(
       turn.referenceImages.map((image) => dataUrlToFile(image.dataUrl, image.name, image.type)),
