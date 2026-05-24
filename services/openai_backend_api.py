@@ -965,6 +965,10 @@ class OpenAIBackendAPI:
                 input_content.append({"type": "input_image", "image_url": data_url})
 
         # 按照 CLIProxyAPI 的格式构建请求体
+        # 注意：Codex OAuth API 不支持以下字段（参考 sub2api 实现）：
+        # - max_output_tokens, max_completion_tokens
+        # - temperature, top_p, frequency_penalty, presence_penalty
+        # - user, metadata, prompt_cache_retention, safety_identifier, stream_options
         payload = {
             "instructions": "",  # 必须为空字符串
             "stream": True,
@@ -995,7 +999,7 @@ class OpenAIBackendAPI:
             "Authorization": f"Bearer {self.access_token}",
             "Connection": "Keep-Alive",
             "Originator": "codex_cli_rs",
-            "User-Agent": "codex_cli_rs/0.118.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9",
+            "User-Agent": "codex_cli_rs/0.125.0",  # 更新到最新版本（与sub2api一致）
             "Session_id": session_id,
         }
 

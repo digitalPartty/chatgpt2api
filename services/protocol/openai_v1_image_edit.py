@@ -10,7 +10,7 @@ from services.protocol.conversation import (
     stream_image_chunks,
     stream_image_outputs_with_pool,
 )
-from services.protocol.openai_v1_image_generations import resolve_codex_size_and_quality
+from services.protocol.openai_v1_image_generations import is_high_resolution_size, resolve_codex_size_and_quality
 from utils.log import logger
 
 
@@ -28,7 +28,9 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
         raise ImageGenerationError("image is required")
 
     # 判断是否使用 Codex 模型（2K/4K）
-    use_codex = quality in ("2k", "4k")
+    # 1. 通过quality参数判断
+    # 2. 通过size像素尺寸判断（兼容sub2api格式）
+    use_codex = quality in ("2k", "4k") or is_high_resolution_size(size)
 
     if use_codex:
         # 使用 codex-gpt-image-2 模型进行图片编辑

@@ -20,12 +20,30 @@ def resolve_codex_size_and_quality(size: str | None, quality: str | None) -> tup
     为 Codex GPT Image 2 解析 size 和 quality 参数。
 
     参数:
-        size: 比例，如 "1:1", "16:9", "9:16", "4:3", "3:4"
+        size: 比例（如 "1:1", "16:9"）或像素尺寸（如 "2048x1152"）
         quality: 清晰度，如 "1k", "2k", "4k"
 
     返回:
         (resolved_size, resolved_quality) 元组
     """
+    # 如果size已经是像素格式（如 "2048x1152"），直接使用
+    if size and isinstance(size, str) and "x" in size.lower():
+        try:
+            parts = size.lower().split("x")
+            if len(parts) == 2:
+                width = int(parts[0])
+                height = int(parts[1])
+                # 验证是否为有效的像素尺寸
+                if 256 <= width <= 4096 and 256 <= height <= 4096:
+                    # 根据尺寸自动判断quality
+                    if width >= 2000 or height >= 2000:
+                        resolved_quality = "high"
+                    else:
+                        resolved_quality = "medium"
+                    return size, resolved_quality
+        except (ValueError, IndexError):
+            pass
+
     # 默认值
     if not quality or quality not in {"1k", "2k", "4k"}:
         quality = "1k"
@@ -72,6 +90,26 @@ def resolve_codex_size_and_quality(size: str | None, quality: str | None) -> tup
     return resolved_size, resolved_quality
 
 
+def is_high_resolution_size(size: str | None) -> bool:
+    """判断size是否为高分辨率（2K+）"""
+    if not size or not isinstance(size, str):
+        return False
+
+    # 检查是否为像素格式（如 "2048x1152"）
+    if "x" in size.lower():
+        try:
+            parts = size.lower().split("x")
+            if len(parts) == 2:
+                width = int(parts[0])
+                height = int(parts[1])
+                # 任一边 >= 2000 认为是2K+
+                return width >= 2000 or height >= 2000
+        except (ValueError, IndexError):
+            pass
+
+    return False
+
+
 def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
     prompt = str(body.get("prompt") or "")
     model = str(body.get("model") or "gpt-image-2")
@@ -82,7 +120,9 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
     base_url = str(body.get("base_url") or "") or None
 
     # 判断是否使用 Codex 模型（2K/4K）
-    use_codex = quality in ("2k", "4k")
+    # 1. 通过quality参数判断
+    # 2. 通过size像素尺寸判断（兼容sub2api格式）
+    use_codex = quality in ("2k", "4k") or is_high_resolution_size(size)
 
     if use_codex:
         # 使用 codex-gpt-image-2 模型生成高清图片
