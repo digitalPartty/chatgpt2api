@@ -287,6 +287,51 @@ def count_message_tokens(messages: list[dict[str, Any]], model: str) -> int:
     return total + 3
 
 
+def count_message_image_tokens(messages: list[dict[str, Any]], model: str) -> int:
+    """Count image tokens from messages. Returns 0 if no images found."""
+    total = 0
+    for message in messages:
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "image_url":
+                # Estimate image tokens based on detail level
+                detail = item.get("image_url", {}).get("detail", "auto")
+                if detail == "low":
+                    total += 85
+                else:
+                    # High detail: base 85 + tiles * 170
+                    total += 85 + 170
+    return total
+
+
+def count_message_text_tokens(messages: list[dict[str, Any]], model: str) -> int:
+    """Count text tokens from messages, excluding image content."""
+    encoding = encoding_for_model(model)
+    total = 0
+    for message in messages:
+        total += 3
+        content = message.get("content")
+        if isinstance(content, str):
+            total += len(encoding.encode(content))
+        elif isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        total += len(encoding.encode(item.get("text", "")))
+        for key, value in message.items():
+            if key in ("content", "role"):
+                continue
+            if isinstance(value, str):
+                total += len(encoding.encode(value))
+                if key == "name":
+                    total += 1
+    return total + 3
+
+
 def count_text_tokens(text: str, model: str) -> int:
     return len(encoding_for_model(model).encode(text))
 

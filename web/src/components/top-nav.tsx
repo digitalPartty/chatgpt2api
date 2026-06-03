@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Github } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 import webConfig from "@/constants/common-env";
@@ -81,7 +81,7 @@ export function TopNav() {
             className="inline-flex items-center gap-1.5 py-1 text-sm text-white/35 transition hover:text-white/70"
             aria-label="GitHub repository"
           >
-            <Github className="size-4" />
+            <ExternalLink className="size-4" />
             <span className="hidden md:inline">GitHub</span>
           </a>
           <button

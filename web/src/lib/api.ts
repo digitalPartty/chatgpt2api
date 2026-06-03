@@ -830,3 +830,32 @@ export async function testProxy(url?: string) {
     body: { url: url ?? "" },
   });
 }
+
+// ── OAuth Login ──────────────────────────────────────────────────────
+
+export type OAuthLoginStartResponse = {
+  session_id: string;
+  authorize_url: string;
+};
+
+export type OAuthLoginFinishResponse = {
+  items: Account[];
+  added?: number;
+  skipped?: number;
+  refreshed?: number;
+  errors?: Array<{ access_token: string; error: string }>;
+};
+
+export async function startOAuthLogin(email?: string) {
+  return httpRequest<OAuthLoginStartResponse>("/api/accounts/oauth/start", {
+    method: "POST",
+    body: { email: email ?? "" },
+  });
+}
+
+export async function finishOAuthLogin(sessionId: string, callbackUrl: string) {
+  return httpRequest<OAuthLoginFinishResponse>("/api/accounts/oauth/finish", {
+    method: "POST",
+    body: { session_id: sessionId, callback_url: callbackUrl },
+  });
+}
