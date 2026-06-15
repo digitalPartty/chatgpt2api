@@ -937,14 +937,25 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
 
     emitted = False
     last_error = ""
-    rate_limited_tokens: set[str] = set()
     for index in range(1, request.n + 1):
         while True:
             try:
-                token = account_service.get_available_access_token(
-                    required_account_types=request.required_account_types,
-                    excluded_tokens=rate_limited_tokens or None,
-                )
+                # 获取账号：优先使用 required_account_types，否则从 model 中提取
+                if request.required_account_types:
+                    # 显式指定的账号类型（例如：{"plus", "team", "pro"}）
+                    token = account_service.get_available_access_token(
+                        plan_types=request.required_account_types,
+                    )
+                else:
+                    # 从模型名称中提取账号类型（例如：plus-gpt-image-2 -> plan_type="plus"）
+                    from utils.helper import split_image_model, is_codex_image_model
+                    plan_type, _ = split_image_model(request.model)
+                    codex_model = is_codex_image_model(request.model)
+                    token = account_service.get_available_access_token(
+                        plan_type=plan_type,
+                        source_type="codex" if codex_model else None,
+                        plan_types=("plus", "team", "pro") if codex_model and not plan_type else None,
+                    )
             except RuntimeError as exc:
                 if emitted:
                     return
@@ -982,9 +993,9 @@ def stream_image_outputs_with_pool(request: ConversationRequest) -> Iterator[Ima
             except ImagePollTimeoutError:
                 raise
             except CodexRateLimitError as exc:
-                # Codex API 429 rate limit - 标记账号并尝试其他账号
+                # Codex API 429 rate limit - 标记账号为限流并尝试其他账号
                 account_service.mark_image_result(token, False)
-                rate_limited_tokens.add(token)
+                account_service.update_account(token, {"status": "限流"})
                 logger.warning({
                     "event": "codex_rate_limit",
                     "token": token[:16] + "...",
