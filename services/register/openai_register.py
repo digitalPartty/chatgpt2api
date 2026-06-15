@@ -194,20 +194,25 @@ def _response_debug_detail(resp, limit: int = 800) -> str:
 def _is_cloudflare_challenge(resp) -> bool:
     if resp is None:
         return False
+    text = str(getattr(resp, "text", "") or "").lower()
+    headers = getattr(resp, "headers", {}) or {}
+    server = str(headers.get("server") or "").lower()
     try:
         status_code = int(getattr(resp, "status_code", 0) or 0)
     except (TypeError, ValueError):
         status_code = 0
-    if status_code not in (403, 503):
-        return False
-    text = str(getattr(resp, "text", "") or "").lower()
-    return (
-        "<title>just a moment" in text
-        or "<title>attention required! | cloudflare" in text
+
+    explicit_challenge_markers = (
+        "challenges.cloudflare.com" in text
+        or "<title>just a moment" in text
+        or "/cdn-cgi/challenge-platform/" in text
         or "cf-chl-" in text
         or "__cf_chl_" in text
-        or "cf-browser-verification" in text
     )
+    if explicit_challenge_markers:
+        return True
+
+    return "cloudflare" in server and status_code in (403, 503)
 
 
 def _mail_config() -> dict:

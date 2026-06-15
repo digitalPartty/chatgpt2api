@@ -13,7 +13,7 @@
   ],
   "proxy": "",
   "proxy_runtime": {
-    "enabled": false,
+    "enabled": true,
     "egress_mode": "single_proxy",
     "proxy_url": "http://privoxy:8118",
     "resource_proxy_url": "",
