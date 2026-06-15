@@ -2541,6 +2541,137 @@ class OpenAIBackendAPI:
         finally:
             response.close()
 
+    def stream_codex_image_generation(
+            self,
+            prompt: str,
+            size: str = "auto",
+            quality: str = "medium",
+            images: Optional[list[str]] = None,
+    ) -> Iterator[str]:
+        """使用 Codex API 生成图片，支持直接指定分辨率。
+
+        参数:
+            prompt: 图片描述
+            size: 分辨率，如 "2048x1152", "1536x1024", "auto"
+            quality: 质量，"medium" 或 "high"
+            images: 可选的参考图片列表（用于图片编辑）
+        """
+        if not self.access_token:
+            raise RuntimeError("access_token is required for Codex image endpoints")
+
+        # 构建 Codex 请求体（参考 CLIProxyAPI 实现）
+        action = "edit" if images else "generate"
+        tool = {
+            "type": "image_generation",
+            "action": action,
+            "model": "gpt-image-2",
+            "size": size,
+            "quality": quality,
+            "output_format": "png",
+            "moderation": "auto",
+        }
+
+        # 构建输入内容
+        input_content = [{"type": "input_text", "text": prompt}]
+
+        # 如果有参考图片，上传并添加到输入
+        if images:
+            for image in images:
+                image_data = self._decode_image_base64(image)
+                image_b64 = base64.b64encode(image_data).decode("utf-8")
+                img = Image.open(BytesIO(image_data))
+                mime_type = Image.MIME.get(img.format, "image/png")
+                data_url = f"data:{mime_type};base64,{image_b64}"
+                input_content.append({"type": "input_image", "image_url": data_url})
+
+        # 按照 CLIProxyAPI 的格式构建请求体
+        # 注意：Codex OAuth API 不支持以下字段（参考 sub2api 实现）：
+        # - max_output_tokens, max_completion_tokens
+        # - temperature, top_p, frequency_penalty, presence_penalty
+        # - user, metadata, prompt_cache_retention, safety_identifier, stream_options
+        payload = {
+            "instructions": "",  # 必须为空字符串
+            "stream": True,
+            "reasoning": {"effort": "medium", "summary": "auto"},
+            "parallel_tool_calls": True,
+            "include": ["reasoning.encrypted_content"],
+            "model": "gpt-5.4-mini",  # Codex 使用的模型
+            "store": False,
+            "tool_choice": {"type": "image_generation"},
+            "input": [
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": input_content,
+                }
+            ],
+            "tools": [tool],
+        }
+
+        # Codex API 只需要 Bearer token，不需要 Sentinel token
+        path = "/backend-api/codex/responses"
+        # Codex API 需要专用 headers（参考 CLIProxyAPI applyCodexHeaders），
+        # 不能使用 _headers() 的 ChatGPT web session headers，否则 Cloudflare 会拦截
+        session_id = new_uuid()
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "Authorization": f"Bearer {self.access_token}",
+            "Connection": "Keep-Alive",
+            "Originator": "codex_cli_rs",
+            "User-Agent": "codex_cli_rs/0.125.0",  # 更新到最新版本（与sub2api一致）
+            "Session_id": session_id,
+        }
+
+        logger.info({
+            "event": "codex_api_request",
+            "url": self.base_url + path,
+            "size": size,
+            "quality": quality,
+        })
+
+        try:
+            response = self.session.post(
+                self.base_url + path,
+                headers=headers,
+                json=payload,
+                timeout=300,
+                stream=True,
+            )
+
+            # 如果是错误响应，通过 iter_content 读取 body（stream=True 时 .text 可能为空）
+            if response.status_code < 200 or response.status_code >= 300:
+                chunks = []
+                try:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        chunks.append(chunk)
+                except Exception:
+                    pass
+                error_body = b"".join(chunks).decode("utf-8", errors="replace")
+                logger.error({
+                    "event": "codex_api_error",
+                    "status_code": response.status_code,
+                    "body": error_body,
+                    "url": self.base_url + path,
+                })
+                response.close()
+                raise UpstreamHTTPError(path, response.status_code, error_body)
+
+            try:
+                yield from iter_sse_payloads(response)
+            finally:
+                response.close()
+
+        except UpstreamHTTPError:
+            raise
+        except Exception as exc:
+            logger.error({
+                "event": "codex_api_exception",
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            })
+            raise
+
     def _bootstrap(self) -> None:
         """预热首页，并提取 PoW 相关脚本引用。"""
         response = self.session.get(

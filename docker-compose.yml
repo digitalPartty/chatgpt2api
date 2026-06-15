@@ -14,8 +14,12 @@ services:
       - .env
     networks:
       - chatgpt2api-net
+      - sub2api-network  # 加入 sub2api 网络，可以直接调用 sub2api 服务
 
 networks:
   chatgpt2api-net:
     external: true
     name: chatgpt2api-net
+  sub2api-network:
+    external: true
+    name: deploy_sub2api-network  # 使用 sub2api 的实际网络名称
