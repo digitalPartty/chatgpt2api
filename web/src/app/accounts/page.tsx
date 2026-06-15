@@ -42,12 +42,10 @@ import {
 } from "@/components/ui/select";
 import {
   deleteAccounts,
-  exportAccounts,
   fetchAccounts,
   refreshAccounts,
   updateAccount,
   type Account,
-  type AccountExportFormat,
   type AccountStatus,
 } from "@/lib/api";
 import { useAuthGuard } from "@/lib/use-auth-guard";
@@ -170,15 +168,6 @@ function renderPrivacyEmail(email?: string | null) {
   );
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function displayAccountType(account: Account) {
   return account.type || "Free";
 }
@@ -198,7 +187,6 @@ function AccountsPageContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   const loadAccounts = async (silent = false) => {
     if (!silent) {

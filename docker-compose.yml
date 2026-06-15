@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      pull: false
+    image: chatgpt2api:latest
     container_name: chatgpt2api
     restart: unless-stopped
     expose:

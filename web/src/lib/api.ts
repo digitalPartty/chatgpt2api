@@ -2,6 +2,7 @@ import { httpRequest, request } from "@/lib/request";
 
 export type AccountType = string;
 export type AccountStatus = "正常" | "限流" | "异常" | "禁用";
+export type AccountExportFormat = "json" | "zip";
 export type ImageModel = string;
 export type AuthRole = "admin" | "user";
 export type ImageStorageMode = "local" | "webdav" | "both";
@@ -456,6 +457,31 @@ export async function updateAccount(
       ...updates,
     },
   });
+}
+
+export async function exportAccounts(format: AccountExportFormat, tokens: string[]) {
+  const response = await fetch("/api/accounts/export", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      format,
+      access_tokens: tokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "导出失败" }));
+    throw new Error(error.message || "导出失败");
+  }
+
+  const blob = await response.blob();
+  const filename = format === "zip"
+    ? `accounts-${Date.now()}.zip`
+    : `accounts-${Date.now()}.json`;
+
+  return { blob, filename };
 }
 
 export async function generateImage(prompt: string, model?: ImageModel, size?: string, quality = "auto") {
