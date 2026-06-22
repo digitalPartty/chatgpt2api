@@ -42,10 +42,12 @@ import {
 } from "@/components/ui/select";
 import {
   deleteAccounts,
+  exportAccounts,
   fetchAccounts,
   refreshAccounts,
   updateAccount,
   type Account,
+  type AccountExportFormat,
   type AccountStatus,
 } from "@/lib/api";
 import { useAuthGuard } from "@/lib/use-auth-guard";
@@ -187,6 +189,7 @@ function AccountsPageContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadAccounts = async (silent = false) => {
     if (!silent) {
@@ -357,7 +360,16 @@ function AccountsPageContent() {
     setIsExporting(true);
     try {
       const data = await exportAccounts(format, tokens);
-      downloadBlob(data.blob, data.filename);
+      // 创建下载链接
+      const url = window.URL.createObjectURL(data.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = data.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
       toast.success(format === "zip" ? "ZIP 压缩包已导出" : "JSON 文件已导出");
     } catch (error) {
       const message = error instanceof Error ? error.message : "导出账户失败";
