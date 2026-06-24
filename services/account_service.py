@@ -961,14 +961,20 @@ class AccountService:
             plan_type: str | None = None,
             source_type: str | None = None,
             plan_types: set[str] | tuple[str, ...] | None = None,
+            required_account_types: set[str] | tuple[str, ...] | None = None,
+            excluded_tokens: set[str] | None = None,
     ) -> str:
         """从候选池中获取一个可用的图片生图 token。
 
         基于本地缓存做初筛，然后通过 fetch_remote_info 做远程验证（token 有效性、配额等）。
         限制最大尝试次数防止 token rotation 导致无限循环。
         """
+        # required_account_types 是 plan_types 的别名，优先使用 required_account_types
+        if required_account_types is not None:
+            plan_types = required_account_types
+
         max_attempts = 20  # 防止无限循环
-        attempted_tokens: set[str] = set()
+        attempted_tokens: set[str] = set(excluded_tokens or set())
         for _attempt in range(max_attempts):
             access_token = self._acquire_next_candidate_token(
                 excluded_tokens=attempted_tokens,
