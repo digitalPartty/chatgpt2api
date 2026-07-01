@@ -197,6 +197,7 @@ def _is_cloudflare_challenge(resp) -> bool:
     text = str(getattr(resp, "text", "") or "").lower()
     headers = getattr(resp, "headers", {}) or {}
     server = str(headers.get("server") or "").lower()
+    content_type = str(headers.get("content-type") or "").lower()
     try:
         status_code = int(getattr(resp, "status_code", 0) or 0)
     except (TypeError, ValueError):
@@ -211,6 +212,15 @@ def _is_cloudflare_challenge(resp) -> bool:
     )
     if explicit_challenge_markers:
         return True
+
+    # 检测伪装成功的拦截：状态码 200 但返回 HTML 而非预期的 JSON
+    # OpenAI API 应该返回 application/json，如果返回 text/html 且有 cloudflare 特征，说明被拦截
+    if status_code == 200 and "text/html" in content_type:
+        # 检查是否有 Cloudflare 标识或明显的 HTML 文档结构
+        if "cloudflare" in server or "cf-ray" in headers:
+            # 如果请求的是 API 端点但返回了完整的 HTML 文档，大概率是被拦截
+            if "<!doctype html>" in text or "<html" in text:
+                return True
 
     return "cloudflare" in server and status_code in (403, 503)
 
