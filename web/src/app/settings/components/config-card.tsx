@@ -26,6 +26,10 @@ export function ConfigCard() {
   const setImageRetentionDays = useSettingsStore((state) => state.setImageRetentionDays);
   const setImagePollTimeoutSecs = useSettingsStore((state) => state.setImagePollTimeoutSecs);
   const setImageAccountConcurrency = useSettingsStore((state) => state.setImageAccountConcurrency);
+  const setImageSettleEnabled = useSettingsStore((state) => state.setImageSettleEnabled);
+  const setImageRemoveConversationAfterResult = useSettingsStore((state) => state.setImageRemoveConversationAfterResult);
+  const setImageSettleSecs = useSettingsStore((state) => state.setImageSettleSecs);
+  const setImageTimeoutRetrySecs = useSettingsStore((state) => state.setImageTimeoutRetrySecs);
   const setAutoRemoveInvalidAccounts = useSettingsStore((state) => state.setAutoRemoveInvalidAccounts);
   const setAutoRemoveRateLimitedAccounts = useSettingsStore((state) => state.setAutoRemoveRateLimitedAccounts);
   const setLogLevel = useSettingsStore((state) => state.setLogLevel);
@@ -169,13 +173,46 @@ export function ConfigCard() {
             />
             <p className="text-xs text-white/35">限制每个账号同时处理的图片请求数量，默认 3。</p>
           </div>
-          <label className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white/60">
-            <Checkbox
-              checked={Boolean(config?.auto_remove_invalid_accounts)}
-              onCheckedChange={(checked) => setAutoRemoveInvalidAccounts(Boolean(checked))}
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white/60">
+              <Checkbox
+                checked={Boolean(config?.auto_remove_invalid_accounts)}
+                onCheckedChange={(checked) => setAutoRemoveInvalidAccounts(Boolean(checked))}
+              />
+              自动移除异常账号
+            </label>
+            <p className="text-xs text-white/35">刷新时检测并移除</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
+              <Checkbox
+                checked={Boolean(config?.image_settle_enabled !== false)}
+                onCheckedChange={(checked) => setImageSettleEnabled(Boolean(checked))}
+              />
+              <span className="text-sm text-white/60">图片二次确认机制</span>
+            </div>
+            <p className="text-xs text-white/35">打开后能稍微提升获取图片的成功率。</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
+              <Checkbox
+                checked={Boolean(config?.image_remove_conversation_after_result)}
+                onCheckedChange={(checked) => setImageRemoveConversationAfterResult(Boolean(checked))}
+              />
+              <span className="text-sm text-white/60">出图后移除本地对话</span>
+            </div>
+            <p className="text-xs text-white/35">成功拿到图片后，异步隐藏 ChatGPT 侧对应的本地对话记录。</p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm text-white/60">图片超时继续等待时间</label>
+            <Input
+              value={String(config?.image_timeout_retry_secs || "30")}
+              onChange={(event) => setImageTimeoutRetrySecs(event.target.value)}
+              placeholder="30"
+              className="h-10 rounded-xl"
             />
-            自动移除异常账号
-          </label>
+            <p className="text-xs text-white/35">单位秒，图片轮询超时后继续等待的时间。</p>
+          </div>
           <label className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm text-white/60">
             <Checkbox
               checked={Boolean(config?.auto_remove_rate_limited_accounts)}
