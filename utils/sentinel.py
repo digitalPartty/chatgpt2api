@@ -157,3 +157,94 @@ def build_sentinel_token(
     # oai-sc cookie = "0" + sentinel token "c" value (the challenge token from the server)
     oai_sc_value = "0" + token
     return sentinel_value, oai_sc_value
+
+
+def build_sentinel_with_so_token(
+    session: "Session",
+    device_id: str,
+    flow: str,
+    *,
+    user_agent: str = "",
+    sec_ch_ua: str = "",
+    observer_wait_ms: int = 5000,
+) -> tuple[str, str, str]:
+    """请求 sentinel token 和 SO token，返回 (sentinel_header_value, so_token_header_value, oai_sc_cookie_value)。
+
+    此函数专门用于需要 SO Token 的场景（如 create_account）。
+    会等待 observer 收集完成后生成 so-token。
+
+    Args:
+        session: curl_cffi Session 实例
+        device_id: 设备 ID
+        flow: 流程标识（如 "oauth_create_account"）
+        user_agent: 可选的 User-Agent 覆盖
+        sec_ch_ua: 可选的 sec-ch-ua 覆盖
+        observer_wait_ms: SO Token observer 等待时间（毫秒），默认 5000ms
+
+    Returns:
+        (openai-sentinel-token header value, openai-sentinel-so-token header value, oai-sc cookie value) 元组
+
+    Raises:
+        RuntimeError: sentinel 请求失败
+    """
+    ua = user_agent or DEFAULT_SENTINEL_USER_AGENT
+    ch_ua = sec_ch_ua or DEFAULT_SENTINEL_SEC_CH_UA
+    generator = SentinelTokenGenerator(device_id, ua)
+    
+    # 第一步：请求 sentinel req 获取 requirements（包括 so 字段）
+    resp = session.post(
+        "https://sentinel.openai.com/backend-api/sentinel/req",
+        data=json.dumps({"p": generator.generate_requirements_token(), "id": device_id, "flow": flow}),
+        headers={
+            "Content-Type": "text/plain;charset=UTF-8",
+            "Referer": "https://sentinel.openai.com/backend-api/sentinel/frame.html",
+            "Origin": "https://sentinel.openai.com",
+            "User-Agent": ua,
+            "sec-ch-ua": ch_ua,
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+        },
+        timeout=20,
+        verify=False,
+    )
+
+    try:
+        data = resp.json() if resp.text else {}
+    except Exception:
+        fallback = json.dumps(
+            {"p": generator.generate_requirements_token(), "t": "", "c": "", "id": device_id, "flow": flow},
+            separators=(",", ":"),
+        )
+        return fallback, "", ""
+
+    token = str(data.get("token") or "").strip()
+    if resp.status_code != 200 or not token:
+        raise RuntimeError(f"sentinel_req_failed_{resp.status_code}")
+
+    # 第二步：处理 PoW（如果需要）
+    pow_data = data.get("proofofwork") or {}
+    p_value = (
+        generator.generate_token(str(pow_data.get("seed") or ""), str(pow_data.get("difficulty") or "0"))
+        if pow_data.get("required") and pow_data.get("seed")
+        else generator.generate_requirements_token()
+    )
+    
+    # 第三步：处理 SO Token（如果 requirements 里有 so 字段）
+    so_token_value = ""
+    so_data = data.get("so") or {}
+    if so_data.get("required") and so_data.get("seed"):
+        # 等待 observer 收集完成（按官方前端逻辑使用 5000ms）
+        time.sleep(observer_wait_ms / 1000.0)
+        
+        # 生成 SO Token（类似 PoW 的生成方式）
+        so_seed = str(so_data.get("seed") or "")
+        so_difficulty = str(so_data.get("difficulty") or "0")
+        so_token_value = generator.generate_token(so_seed, so_difficulty)
+    
+    # 构造 sentinel token header value
+    sentinel_value = json.dumps({"p": p_value, "t": "", "c": token, "id": device_id, "flow": flow}, separators=(",", ":"))
+    
+    # oai-sc cookie = "0" + sentinel token "c" value
+    oai_sc_value = "0" + token
+    
+    return sentinel_value, so_token_value, oai_sc_value

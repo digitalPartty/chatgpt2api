@@ -2,9 +2,11 @@
 
 ## Unreleased
 
++ [修复] 修复 OpenAI 注册流程 create_account 阶段 registration_disallowed 错误，新增 SO Token 生成支持。
 + [修复] 修复sub2api导入问题。
 + [修复] 修复前端404、405问题。
 + [新增] 新增出图后删除对话记录功能。
++ [优化] 优化注册流程，添加 authorize/continue 步骤和详细错误诊断日志。
 
 ## 1.5.0 - 2026-06-13
 
